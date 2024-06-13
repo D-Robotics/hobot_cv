@@ -19,7 +19,7 @@ def generate_launch_description():
     return LaunchDescription([
         Node(
               package='hobot_cv',
-              executable='crop_example',
+              executable='resize_example_bpu',
               output='screen',
               parameters=[],
               arguments=['--ros-args', '--log-level', 'info']

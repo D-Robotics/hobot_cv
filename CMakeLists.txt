@@ -118,37 +118,54 @@ if (PLATFORM_X5)
   target_link_libraries(${PROJECT_NAME} ${LINK_LIBS} ${VPS_LIBS} ${NEON_LIBS})
 
   # 编译使用示例
-  add_executable(example test/test_crop_resize_rotate.cpp)
-  target_link_libraries(example
+  add_executable(hobotcv_benchmark benchmark/main.cpp benchmark/hobotcv_benchmark_node.cpp)
+  target_link_libraries(hobotcv_benchmark
     ${LINK_LIBS}
     ${PROJECT_NAME}
     ${VPS_LIBS})
 
-  add_executable(crop_example test/test_crop.cpp)
-  target_link_libraries(crop_example
+  add_executable(resize_example_bpu test/test_resize_bpu.cpp)
+  target_link_libraries(resize_example_bpu
     ${LINK_LIBS}
     ${PROJECT_NAME}
     ${VPS_LIBS})
 
-  add_executable(resize_example test/test_resize.cpp)
-  target_link_libraries(resize_example
+  add_executable(resize_example_vps test/test_resize_vps.cpp)
+  target_link_libraries(resize_example_vps
     ${LINK_LIBS}
     ${PROJECT_NAME}
     ${VPS_LIBS})
 
-  add_executable(rotate_example test/test_rotate.cpp)
-  target_link_libraries(rotate_example
+  add_executable(crop_example_bpu test/test_crop_bpu.cpp)
+  target_link_libraries(crop_example_bpu
     ${LINK_LIBS}
     ${PROJECT_NAME}
     ${VPS_LIBS})
 
-  add_executable(pyramid_example test/test_pyramid.cpp)
-  target_link_libraries(pyramid_example
+  add_executable(crop_example_vps test/test_crop_vps.cpp)
+  target_link_libraries(crop_example_vps
     ${LINK_LIBS}
     ${PROJECT_NAME}
     ${VPS_LIBS})
 
-  add_executable(padding_example test/test_padding.cpp)
+  add_executable(rotate_example_vps test/test_rotate_vps.cpp)
+  target_link_libraries(rotate_example_vps
+    ${LINK_LIBS}
+    ${PROJECT_NAME}
+    ${VPS_LIBS})
+
+  add_executable(imgproc_example_vps test/test_imgproc_vps.cpp)
+  target_link_libraries(imgproc_example_vps
+    ${LINK_LIBS}
+    ${PROJECT_NAME}
+    ${VPS_LIBS})
+  
+  add_executable(pyramid_example_vps test/test_pyramid_vps.cpp)
+  target_link_libraries(pyramid_example_vps
+    ${LINK_LIBS}
+    ${PROJECT_NAME}
+    ${VPS_LIBS})
+    add_executable(padding_example test/test_padding.cpp)
   target_link_libraries(padding_example
     ${LINK_LIBS}
     ${PROJECT_NAME})
@@ -163,14 +180,6 @@ if (PLATFORM_X5)
   target_link_libraries(test_gaussian_blur
     ${LINK_LIBS}
     ${PROJECT_NAME})
-
-  add_executable(hobotcv_benchmark
-  benchmark/main.cpp
-  benchmark/hobotcv_benchmark_node.cpp)
-  target_link_libraries(hobotcv_benchmark
-    ${LINK_LIBS}
-    ${PROJECT_NAME}
-    ${VPS_LIBS})
 
   ament_target_dependencies(
     ${PROJECT_NAME}
@@ -205,7 +214,8 @@ if (PLATFORM_X5)
 
   # Install executables
   install(
-    TARGETS example crop_example resize_example rotate_example pyramid_example padding_example test_gaussian_blur neon_example hobotcv_benchmark
+    TARGETS padding_example test_gaussian_blur neon_example hobotcv_benchmark pyramid_example_vps
+            resize_example_bpu resize_example_vps crop_example_bpu crop_example_vps rotate_example_vps imgproc_example_vps
     RUNTIME DESTINATION lib/${PROJECT_NAME}
   )
 

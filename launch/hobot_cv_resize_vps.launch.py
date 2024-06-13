@@ -19,7 +19,7 @@ def generate_launch_description():
     return LaunchDescription([
         Node(
               package='hobot_cv',
-              executable='rotate_example',
+              executable='resize_example_vps',
               output='screen',
               parameters=[],
               arguments=['--ros-args', '--log-level', 'info']

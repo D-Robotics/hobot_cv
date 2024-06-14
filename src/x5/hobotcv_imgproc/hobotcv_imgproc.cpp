@@ -27,46 +27,8 @@ int hobotcv_resize(const cv::Mat &src,
                    int src_w,
                    cv::Mat &dst,
                    int dst_h,
-                   int dst_w,
-                   HobotcvSpeedUpType type) {
-  bool vps_resize = false;
-  if (type == HOBOTCV_AUTO) {
-    hobotcv_front hobotcv;
-    auto ret = hobotcv.prepareResizeParam(src_w, src_h, dst_w, dst_h, false);
-    if (ret == 0) {
-      vps_resize = true;
-    }
-  } else if (type == HOBOTCV_VPS) {
-    vps_resize = true;
-  }
-  if (vps_resize) {
-    return hobotcv_vps_resize(
-        src, dst, dst_h, dst_w, cv::Range(0, 0), cv::Range(0, 0));
-  }
-
-  hbDNNTensor input_tensor;
-  hbDNNTensor output_tensor;
-  auto ret = hobotcv_bpu_resize(reinterpret_cast<const char *>(src.data),
-                                src_h,
-                                src_w,
-                                dst_h,
-                                dst_w,
-                                src_h,
-                                src_w,
-                                &input_tensor,
-                                &output_tensor,
-                                nullptr);
-  if (ret != 0) {
-    return ret;
-  }
-
-  size_t size = dst_h * dst_w * 3 / 2;
-  dst = cv::Mat(dst_h * 3 / 2, dst_w, CV_8UC1);
-  memcpy(dst.data, output_tensor.sysMem[0].virAddr, size);
-  hbSysFreeMem(&(input_tensor.sysMem[0]));
-  hbSysFreeMem(&(output_tensor.sysMem[0]));
-
-  return 0;
+                   int dst_w) {
+  return hobotcv_vps_resize(src, dst, dst_h, dst_w, cv::Range(0, 0), cv::Range(0, 0));
 }
 
 cv::Mat hobotcv_crop(const cv::Mat &src,
@@ -77,29 +39,16 @@ cv::Mat hobotcv_crop(const cv::Mat &src,
                      const cv::Range &rowRange,
                      const cv::Range &colRange,
                      HobotcvSpeedUpType type) {
-  bool vps_resize = false;
-  if (type == HOBOTCV_AUTO) {
-    hobotcv_front hobotcv;
-    auto ret = hobotcv.prepareCropRoi(
-        src_h, src_w, dst_w, dst_h, rowRange, colRange, false);
-    if (ret == 0) {
-      ret = hobotcv.prepareResizeParam(src_w, src_h, dst_w, dst_h, false);
-      if (ret == 0) {
-        vps_resize = true;
-      }
-    }
-  } else if (type == HOBOTCV_VPS) {
-    vps_resize = true;
-  }
-  if (vps_resize) {
+  // VPS加速
+  if (type == HOBOTCV_VPS) {
     cv::Mat dst;
-    hobotcv_vps_resize(src, dst, dst_h, dst_w, rowRange, colRange);
+    int ret = hobotcv_vps_resize(src, dst, dst_h, dst_w, rowRange, colRange);
     return dst;
   }
 
+  // CPU实现
   cv::Mat dst(dst_h * 3 / 2, dst_w, CV_8UC1);
-  if (rowRange.end > src_h || colRange.end > src_w || rowRange.start < 0 ||
-      colRange.start < 0) {  // crop区域要在原图范围内
+  if (rowRange.end > src_h || colRange.end > src_w || rowRange.start < 0 || colRange.start < 0) {  // crop区域要在原图范围内
     RCLCPP_ERROR(
         rclcpp::get_logger("hobot_cv crop"),
         "Invalid Range data, rowRange.start:%d rowRange.end:%d "
@@ -116,8 +65,7 @@ cv::Mat hobotcv_crop(const cv::Mat &src,
 
   hbDNNRoi roi;
   int range_h = 0, range_w = 0;
-  if (colRange.end - colRange.start <= 0 ||
-      rowRange.end - rowRange.start <= 0) {
+  if (colRange.end - colRange.start <= 0 || rowRange.end - rowRange.start <= 0) {
     roi.left = 0;
     roi.top = 0;
     roi.right = 0;
@@ -131,47 +79,27 @@ cv::Mat hobotcv_crop(const cv::Mat &src,
     range_w = colRange.end - colRange.start;
   }
 
-  if (range_h == dst_h && range_w == dst_w) {
-    auto srcdata = reinterpret_cast<const uint8_t *>(src.data);
-    auto dstdata = dst.data;
-    // copy y
-    for (int h = 0; h < dst_h; ++h) {
-      auto *raw = dstdata + h * dst_w;
-      auto *src = srcdata + (h + roi.top) * src_w + roi.left;
-      memcpy(raw, src, dst_w);
-    }
+  // CPU 实现要保证以下条件
+  assert (range_h == dst_h && range_w == dst_w);
 
-    // copy uv
-    auto uv_data = srcdata + src_h * src_w;
-    auto dstuvdata = dstdata + dst_h * dst_w;
-    for (int32_t h = 0; h < dst_h / 2; ++h) {
-      auto *raw = dstuvdata + h * dst_w;
-      auto *src = uv_data + (h + (roi.top / 2)) * src_w + roi.left;
-      memcpy(raw, src, dst_w);
-    }
-    return dst;
+  auto srcdata = reinterpret_cast<const uint8_t *>(src.data);
+  auto dstdata = dst.data;
+  // copy y
+  for (int h = 0; h < dst_h; ++h) {
+    auto *raw = dstdata + h * dst_w;
+    auto *src = srcdata + (h + roi.top) * src_w + roi.left;
+    memcpy(raw, src, dst_w);
   }
 
-  hbDNNTensor input_tensor;
-  hbDNNTensor output_tensor;
-  auto ret = hobotcv_bpu_resize(reinterpret_cast<const char *>(src.data),
-                                src_h,
-                                src_w,
-                                dst_h,
-                                dst_w,
-                                range_h,
-                                range_w,
-                                &input_tensor,
-                                &output_tensor,
-                                &roi);
-  if (ret != 0) {
-    return dst;
+  // copy uv
+  auto uv_data = srcdata + src_h * src_w;
+  auto dstuvdata = dstdata + dst_h * dst_w;
+  for (int32_t h = 0; h < dst_h / 2; ++h) {
+    auto *raw = dstuvdata + h * dst_w;
+    auto *src = uv_data + (h + (roi.top / 2)) * src_w + roi.left;
+    memcpy(raw, src, dst_w);
   }
 
-  size_t size = dst_h * dst_w * 3 / 2;
-  memcpy(dst.data, output_tensor.sysMem[0].virAddr, size);
-  hbSysFreeMem(&(input_tensor.sysMem[0]));
-  hbSysFreeMem(&(output_tensor.sysMem[0]));
   return dst;
 }
 
@@ -327,62 +255,15 @@ std::shared_ptr<ImageInfo> hobotcv_resize(const char *src,
                                           int src_h,
                                           int src_w,
                                           int dst_h,
-                                          int dst_w,
-                                          HobotcvSpeedUpType type) {
-  bool vps_resize = false;
+                                          int dst_w) {
   int out_h = dst_h, out_w = dst_w;
-  if (type == HOBOTCV_AUTO) {
-    hobotcv_front hobotcv;
-    auto ret = hobotcv.prepareResizeParam(src_w, src_h, dst_w, dst_h, false);
-    if (ret == 0) {
-      vps_resize = true;
-    }
-  } else if (type == HOBOTCV_VPS) {
-    vps_resize = true;
-  }
-  if (vps_resize) {  //使用vps进行resize，调用hobotcv_vps_resize
-    auto *dst_sysMem = hobotcv_vps_resize(
-        src, src_h, src_w, out_h, out_w, cv::Range(0, 0), cv::Range(0, 0));
-    if (dst_sysMem == nullptr) {
-      return nullptr;
-    }
-    auto imageInfo = new ImageInfo;
-    imageInfo->width = out_w;
-    imageInfo->height = out_h;
-    imageInfo->imageAddr = dst_sysMem->virAddr;
-    return std::shared_ptr<ImageInfo>(imageInfo,
-                                      [dst_sysMem](ImageInfo *imageInfo) {
-                                        hbSysFreeMem(dst_sysMem);
-                                        delete dst_sysMem;
-                                        delete imageInfo;
-                                      });
-  }
-  hbDNNTensor input_tensor;
-  hbDNNTensor output_tensor;
-  auto ret = hobotcv_bpu_resize(src,
-                                src_h,
-                                src_w,
-                                dst_h,
-                                dst_w,
-                                src_h,
-                                src_w,
-                                &input_tensor,
-                                &output_tensor,
-                                nullptr);
-  if (ret != 0) {
+  auto *dst_sysMem = hobotcv_vps_resize(src, src_h, src_w, out_h, out_w, cv::Range(0, 0), cv::Range(0, 0));
+  if (dst_sysMem == nullptr) {
     return nullptr;
   }
-
-  size_t size = dst_h * dst_w * 3 / 2;
-  auto *dst_sysMem = new hbSysMem;
-  hbSysAllocCachedMem(dst_sysMem, size);
-  memcpy(dst_sysMem->virAddr, output_tensor.sysMem[0].virAddr, size);
-  hbSysFlushMem(dst_sysMem, HB_SYS_MEM_CACHE_CLEAN);
-  hbSysFreeMem(&(input_tensor.sysMem[0]));
-  hbSysFreeMem(&(output_tensor.sysMem[0]));
   auto imageInfo = new ImageInfo;
-  imageInfo->width = dst_w;
-  imageInfo->height = dst_h;
+  imageInfo->width = out_w;
+  imageInfo->height = out_h;
   imageInfo->imageAddr = dst_sysMem->virAddr;
   return std::shared_ptr<ImageInfo>(imageInfo,
                                     [dst_sysMem](ImageInfo *imageInfo) {
@@ -400,24 +281,10 @@ std::shared_ptr<ImageInfo> hobotcv_crop(const char *src,
                                         const cv::Range &rowRange,
                                         const cv::Range &colRange,
                                         HobotcvSpeedUpType type) {
-  bool vps_resize = false;
   int out_h = dst_h, out_w = dst_w;
-  if (type == HOBOTCV_AUTO) {
-    hobotcv_front hobotcv;
-    auto ret = hobotcv.prepareCropRoi(
-        src_h, src_w, dst_w, dst_h, rowRange, colRange, false);
-    if (ret == 0) {
-      ret = hobotcv.prepareResizeParam(src_w, src_h, dst_w, dst_h, false);
-      if (ret == 0) {
-        vps_resize = true;
-      }
-    }
-  } else if (type == HOBOTCV_VPS) {
-    vps_resize = true;
-  }
-  if (vps_resize) {  //使用vps进行resize，调用hobotcv_vps_resize
-    auto *dst_SysMem =
-        hobotcv_vps_resize(src, src_h, src_w, out_h, out_w, rowRange, colRange);
+  // VPS加速
+  if (type == hobot_cv::HOBOTCV_VPS) {  //使用vps进行resize，调用hobotcv_vps_resize
+    auto *dst_SysMem = hobotcv_vps_resize(src, src_h, src_w, out_h, out_w, rowRange, colRange);
     if (dst_SysMem == nullptr) {
       return nullptr;
     }
@@ -433,8 +300,8 @@ std::shared_ptr<ImageInfo> hobotcv_crop(const char *src,
                                       });
   }
 
-  if (rowRange.end > src_h || colRange.end > src_w || rowRange.start < 0 ||
-      colRange.start < 0) {  // crop区域要在原图范围内
+  // CPU实现
+  if (rowRange.end > src_h || colRange.end > src_w || rowRange.start < 0 || colRange.start < 0) {  // crop区域要在原图范围内
     RCLCPP_ERROR(
         rclcpp::get_logger("hobot_cv crop"),
         "Invalid Range data, rowRange.start:%d rowRange.end:%d "
@@ -451,8 +318,7 @@ std::shared_ptr<ImageInfo> hobotcv_crop(const char *src,
 
   hbDNNRoi roi;
   int range_h = 0, range_w = 0;
-  if (colRange.end - colRange.start <= 0 ||
-      rowRange.end - rowRange.start <= 0) {
+  if (colRange.end - colRange.start <= 0 || rowRange.end - rowRange.start <= 0) {
     roi.left = 0;
     roi.top = 0;
     roi.right = 0;
@@ -466,65 +332,30 @@ std::shared_ptr<ImageInfo> hobotcv_crop(const char *src,
     range_w = colRange.end - colRange.start;
   }
 
-  if (range_h == dst_h && range_w == dst_w) {
-    auto srcdata = reinterpret_cast<const uint8_t *>(src);
-    size_t dst_size = dst_h * dst_w * 3 / 2;
-    auto *dst_SysMem = new hbSysMem;
-    hbSysAllocCachedMem(dst_SysMem, dst_size);
-    auto dstdata = reinterpret_cast<uint8_t *>(dst_SysMem->virAddr);
-    // copy y
-    for (int h = 0; h < dst_h; ++h) {
-      auto *raw = dstdata + h * dst_w;
-      auto *src_y = srcdata + (h + roi.top) * src_w + roi.left;
-      memcpy(raw, src_y, dst_w);
-    }
+  // CPU 实现要保证以下条件
+  assert (range_h == dst_h && range_w == dst_w);
 
-    // copy uv
-    auto uv_data = srcdata + src_h * src_w;
-    auto dstuvdata = dstdata + dst_h * dst_w;
-    for (int32_t h = 0; h < dst_h / 2; ++h) {
-      auto *raw = dstuvdata + h * dst_w;
-      auto *src_uv = uv_data + (h + (roi.top / 2)) * src_w + roi.left;
-      memcpy(raw, src_uv, dst_w);
-    }
-    hbSysFlushMem(dst_SysMem, HB_SYS_MEM_CACHE_CLEAN);
-    auto imageInfo = new ImageInfo;
-    imageInfo->width = dst_w;
-    imageInfo->height = dst_h;
-    imageInfo->imageAddr = dst_SysMem->virAddr;
-    return std::shared_ptr<ImageInfo>(imageInfo,
-                                      [dst_SysMem](ImageInfo *imageInfo) {
-                                        hbSysFreeMem(dst_SysMem);
-                                        delete dst_SysMem;
-                                        delete imageInfo;
-                                      });
-  }
-  hbDNNTensor input_tensor;
-  hbDNNTensor output_tensor;
-  auto ret = hobotcv_bpu_resize(src,
-                                src_h,
-                                src_w,
-                                dst_h,
-                                dst_w,
-                                range_h,
-                                range_w,
-                                &input_tensor,
-                                &output_tensor,
-                                &roi);
-  if (ret != 0) {
-    return nullptr;
-  }
-
-  size_t size = dst_h * dst_w * 3 / 2;
+  auto srcdata = reinterpret_cast<const uint8_t *>(src);
+  size_t dst_size = dst_h * dst_w * 3 / 2;
   auto *dst_SysMem = new hbSysMem;
-  hbSysAllocCachedMem(dst_SysMem, size);
-  auto dstdata = dst_SysMem->virAddr;
-  memcpy(dstdata, output_tensor.sysMem[0].virAddr, size);
+  hbSysAllocCachedMem(dst_SysMem, dst_size);
+  auto dstdata = reinterpret_cast<uint8_t *>(dst_SysMem->virAddr);
+  // copy y
+  for (int h = 0; h < dst_h; ++h) {
+    auto *raw = dstdata + h * dst_w;
+    auto *src_y = srcdata + (h + roi.top) * src_w + roi.left;
+    memcpy(raw, src_y, dst_w);
+  }
+
+  // copy uv
+  auto uv_data = srcdata + src_h * src_w;
+  auto dstuvdata = dstdata + dst_h * dst_w;
+  for (int32_t h = 0; h < dst_h / 2; ++h) {
+    auto *raw = dstuvdata + h * dst_w;
+    auto *src_uv = uv_data + (h + (roi.top / 2)) * src_w + roi.left;
+    memcpy(raw, src_uv, dst_w);
+  }
   hbSysFlushMem(dst_SysMem, HB_SYS_MEM_CACHE_CLEAN);
-
-  hbSysFreeMem(&(input_tensor.sysMem[0]));
-  hbSysFreeMem(&(output_tensor.sysMem[0]));
-
   auto imageInfo = new ImageInfo;
   imageInfo->width = dst_w;
   imageInfo->height = dst_h;

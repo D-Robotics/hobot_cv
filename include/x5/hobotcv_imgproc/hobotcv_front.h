@@ -75,18 +75,6 @@ hbSysMem *hobotcv_vps_resize(const char *src,
                              const cv::Range &rowRange,
                              const cv::Range &colRange);
 
-/* hobotcv 使用bpu加速resize，输出图片数据地址output_tensor->sysMem[0].virAddr*/
-int hobotcv_bpu_resize(const char *src,
-                       const int src_h,
-                       const int src_w,
-                       int dst_h,
-                       int dst_w,
-                       int range_h,
-                       int range_w,
-                       hbDNNTensor *input_tensor,
-                       hbDNNTensor *output_tensor,
-                       hbDNNRoi *roi);
-
 class hobotcv_front {
  public:
   explicit hobotcv_front();

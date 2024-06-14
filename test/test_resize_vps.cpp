@@ -52,12 +52,12 @@ int main() {
     auto before_resize = std::chrono::system_clock::now();
     // =============================================
     cv::Mat dstmat_nv12;
-    auto ret = hobot_cv::hobotcv_resize(srcmat_nv12, src_height, src_width, dstmat_nv12, dst_height, dst_width, hobot_cv::HOBOTCV_VPS);
+    auto ret = hobot_cv::hobotcv_resize(srcmat_nv12, src_height, src_width, dstmat_nv12, dst_height, dst_width);
     // =============================================
     auto after_resize = std::chrono::system_clock::now();
     auto interval = std::chrono::duration_cast<std::chrono::milliseconds>(after_resize - before_resize).count();
     std::stringstream ss;
-    ss << "\n" << "source image " << image_file << " is " << src_width << "x" << src_height << " pixels";
+    ss << "source image " << image_file << " is " << src_width << "x" << src_height << " pixels";
     RCLCPP_INFO(rclcpp::get_logger("example"), "%s", ss.str().c_str());
     if (0 == ret) {
       std::stringstream ss_resize;
@@ -73,12 +73,12 @@ int main() {
     RCLCPP_INFO(rclcpp::get_logger("example"), "%s", "Test hobotcv_resize: Arr Input, VPS Process");
     auto before_resize = std::chrono::system_clock::now();
     // =============================================
-    auto imageInfo = hobot_cv::hobotcv_resize(reinterpret_cast<const char *>(srcmat_nv12.data), src_height, src_width, dst_height, dst_width, hobot_cv::HOBOTCV_VPS);
+    auto imageInfo = hobot_cv::hobotcv_resize(reinterpret_cast<const char *>(srcmat_nv12.data), src_height, src_width, dst_height, dst_width);
     // =============================================
     auto after_resize = std::chrono::system_clock::now();
     auto interval = std::chrono::duration_cast<std::chrono::milliseconds>(after_resize - before_resize).count();
     std::stringstream ss;
-    ss << "\n" << "source image " << image_file << " is " << src_width << "x" << src_height << " pixels";
+    ss << "source image " << image_file << " is " << src_width << "x" << src_height << " pixels";
     RCLCPP_INFO(rclcpp::get_logger("example"), "%s", ss.str().c_str());
     if (imageInfo != nullptr) {
       std::stringstream ss_resize;

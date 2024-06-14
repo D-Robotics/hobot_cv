@@ -63,8 +63,8 @@ typedef struct HOBOT_CV_IMAGE_INFO {
 
 typedef std::unique_ptr<char[]> HobotcvImagePtr;
 
-// hobot_cv加速方式枚举
-enum HobotcvSpeedUpType { HOBOTCV_AUTO = 0, HOBOTCV_VPS = 1, HOBOTCV_BPU = 2 };
+// hobot_cv加速方式枚举，X5芯片的DNN库接口对比X3芯片有删除，目前hobot_cv里imgproc提供的接口均无法BPU加速，故删除了HOBOTCV_BPU枚举
+enum HobotcvSpeedUpType { HOBOTCV_VPS = 1, HOBOTCV_CPU = 2 };
 
 // 填充方式枚举
 /*
@@ -102,8 +102,7 @@ int hobotcv_resize(const cv::Mat &src,
                    int src_w,
                    cv::Mat &dst,
                    int dst_h,
-                   int dst_w,
-                   HobotcvSpeedUpType type = HOBOTCV_AUTO);
+                   int dst_w);
 
 /**
  * hobotcv加速图片crop&resize处理
@@ -124,7 +123,7 @@ cv::Mat hobotcv_crop(const cv::Mat &src,
                      int dst_w,
                      const cv::Range &rowRange,
                      const cv::Range &colRange,
-                     HobotcvSpeedUpType type = HOBOTCV_AUTO);
+                     HobotcvSpeedUpType type = HOBOTCV_VPS);
 
 /**
  * hobotcv加速图片旋转处理
@@ -198,8 +197,7 @@ std::shared_ptr<ImageInfo> hobotcv_resize(
     int src_h,
     int src_w,
     int dst_h,
-    int dst_w,
-    HobotcvSpeedUpType type = HOBOTCV_AUTO);
+    int dst_w);
 
 /**
  * hobotcv加速图片crop&resize处理
@@ -220,7 +218,7 @@ std::shared_ptr<ImageInfo> hobotcv_crop(const char *src,
                                         int dst_w,
                                         const cv::Range &rowRange,
                                         const cv::Range &colRange,
-                                        HobotcvSpeedUpType type = HOBOTCV_AUTO);
+                                        HobotcvSpeedUpType type = HOBOTCV_VPS);
 
 /**
  * hobotcv加速图片旋转处理

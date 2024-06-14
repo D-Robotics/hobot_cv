@@ -118,17 +118,11 @@ if (PLATFORM_X5)
   target_link_libraries(${PROJECT_NAME} ${LINK_LIBS} ${VPS_LIBS} ${NEON_LIBS})
 
   # 编译使用示例
-  add_executable(hobotcv_benchmark benchmark/main.cpp benchmark/hobotcv_benchmark_node.cpp)
-  target_link_libraries(hobotcv_benchmark
-    ${LINK_LIBS}
-    ${PROJECT_NAME}
-    ${VPS_LIBS})
-
-  add_executable(resize_example_bpu test/test_resize_bpu.cpp)
-  target_link_libraries(resize_example_bpu
-    ${LINK_LIBS}
-    ${PROJECT_NAME}
-    ${VPS_LIBS})
+  # add_executable(hobotcv_benchmark benchmark/main.cpp benchmark/hobotcv_benchmark_node.cpp)
+  # target_link_libraries(hobotcv_benchmark
+    # ${LINK_LIBS}
+    # ${PROJECT_NAME}
+    # ${VPS_LIBS})
 
   add_executable(resize_example_vps test/test_resize_vps.cpp)
   target_link_libraries(resize_example_vps
@@ -136,8 +130,8 @@ if (PLATFORM_X5)
     ${PROJECT_NAME}
     ${VPS_LIBS})
 
-  add_executable(crop_example_bpu test/test_crop_bpu.cpp)
-  target_link_libraries(crop_example_bpu
+  add_executable(crop_example_cpu test/test_crop_cpu.cpp)
+  target_link_libraries(crop_example_cpu
     ${LINK_LIBS}
     ${PROJECT_NAME}
     ${VPS_LIBS})
@@ -165,7 +159,8 @@ if (PLATFORM_X5)
     ${LINK_LIBS}
     ${PROJECT_NAME}
     ${VPS_LIBS})
-    add_executable(padding_example test/test_padding.cpp)
+
+  add_executable(padding_example test/test_padding.cpp)
   target_link_libraries(padding_example
     ${LINK_LIBS}
     ${PROJECT_NAME})
@@ -214,8 +209,8 @@ if (PLATFORM_X5)
 
   # Install executables
   install(
-    TARGETS padding_example test_gaussian_blur neon_example hobotcv_benchmark pyramid_example_vps
-            resize_example_bpu resize_example_vps crop_example_bpu crop_example_vps rotate_example_vps imgproc_example_vps
+    TARGETS padding_example test_gaussian_blur neon_example pyramid_example_vps
+            resize_example_vps crop_example_cpu crop_example_vps rotate_example_vps imgproc_example_vps
     RUNTIME DESTINATION lib/${PROJECT_NAME}
   )
 

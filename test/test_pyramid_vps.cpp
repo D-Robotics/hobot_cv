@@ -62,7 +62,7 @@ int main() {
     auto after_pyramid = std::chrono::system_clock::now();
     auto interval = std::chrono::duration_cast<std::chrono::milliseconds>(after_pyramid - before_pyramid).count();
     std::stringstream ss;
-    ss << "\n" << "source image " << image_file << " is " << src_width << "x" << src_height << " pixels";
+    ss << "source image " << image_file << " is " << src_width << "x" << src_height << " pixels";
     RCLCPP_INFO(rclcpp::get_logger("example"), "%s", ss.str().c_str());
     if (ret == 0) {
       std::stringstream ss_pyramid;
@@ -105,7 +105,7 @@ int main() {
     auto after_pyramid = std::chrono::system_clock::now();
     auto interval = std::chrono::duration_cast<std::chrono::milliseconds>(after_pyramid - before_pyramid).count();
     std::stringstream ss;
-    ss << "\n" << "source image " << image_file << " is " << src_width << "x" << src_height << " pixels";
+    ss << "source image " << image_file << " is " << src_width << "x" << src_height << " pixels";
     RCLCPP_INFO(rclcpp::get_logger("example"), "%s", ss.str().c_str());
     if (ret == 0) {
       std::stringstream ss_pyramid;

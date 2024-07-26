@@ -20,6 +20,8 @@
 
 #include "opencv2/core/mat.hpp"
 #include "opencv2/core/types.hpp"
+#include "hbn_api.h"
+#include "vse_cfg.h"
 
 namespace hobot_cv {
 
@@ -30,30 +32,6 @@ typedef enum HOBOT_CV_ROTATION_E {
   ROTATION_270,
   ROTATION_MAX
 } ROTATION_E;
-
-typedef struct HOBOT_CV_PYM_OUTPUT_INFO {
-  int width;
-  int height;
-  std::vector<uint8_t> img;
-} PymOutImg;
-
-typedef struct HOBOT_CV_PYRAMID_OUTPUT {
-  bool isSuccess;
-  PymOutImg pym_out[24];
-} OutputPyramid;
-
-typedef struct HOBOT_CV_PYM_SCALE_INFO {
-  uint8_t factor;       //缩放参数（0~63）0:disable
-  uint16_t roi_x;       //起始x坐标
-  uint16_t roi_y;       //起始y坐标
-  uint16_t roi_width;   //图像宽
-  uint16_t roi_height;  //图像高
-} PymramidScaleInfo;
-
-typedef struct HOBOT_CV_PYM_ATTR {
-  int timeout;
-  PymramidScaleInfo ds_info[24];
-} PyramidAttr;
 
 typedef struct HOBOT_CV_IMAGE_INFO {
   int width;
@@ -152,17 +130,6 @@ int hobotcv_imgproc(const cv::Mat &src,
                     const cv::Range &rowRange,
                     const cv::Range &colRange);
 
-/**
- * hobotcv加速图片pyramid处理
- * @param[in] src: 需要进行pyramid处理的原图，只支持nv12格式图片
- * @param[in/out] output：pyramid处理后输出的图像信息指针，
- *                输出图片与输入的pyramid配置相关，具体数据结构为HOBOT_CV_PYRAMID_OUTPUT,由用户做内存管理
- * @param[in] attr：pyramid处理的配置属性，具体数据结构为HOBOT_CV_PYM_ATTR
- * @return 成功返回0，失败返回非0
- */
-int hobotcv_pymscale(const cv::Mat &src,
-                     OutputPyramid *output,
-                     const PyramidAttr &attr);
 
 /**
  * hobotcv边界填充处理
@@ -253,21 +220,7 @@ std::shared_ptr<ImageInfo> hobotcv_imgproc(const char *src,
                                            const cv::Range &rowRange,
                                            const cv::Range &colRange);
 
-/**
- * hobotcv加速图片pyramid处理
- * @param[in] src: 需要进行pyramid处理的原图，只支持nv12格式图片
- * @param[in] src_h: 原图高
- * @param[in] src_w: 原图宽
- * @param[in/out] output：pyramid处理后输出的图像信息指针，
- *              输出图片与输入的pyramid配置相关，具体数据结构为HOBOT_CV_PYRAMID_OUTPUT,由用户做内存管理
- * @param[in] attr：pyramid处理的配置属性，具体数据结构为HOBOT_CV_PYM_ATTR
- * @return 成功返回0，失败返回非0
- */
-int hobotcv_pymscale(const char *src,
-                     int src_h,
-                     int src_w,
-                     OutputPyramid *output,
-                     const PyramidAttr &attr);
+
 }  // namespace hobot_cv
 
 #endif  // HOBOT_CV_INCLUDE_HOBOTCV_IMGPROC_HPP_

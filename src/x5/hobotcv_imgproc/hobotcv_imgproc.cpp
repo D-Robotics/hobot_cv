@@ -13,14 +13,33 @@
 // limitations under the License.
 
 #include <iostream>
+#include <fstream>
 
 #include "rclcpp/rclcpp.hpp"
 
 #include "hobotcv_imgproc/hobotcv_imgproc.h"
 #include "hobotcv_imgproc/hobotcv_front.h"
 #include "utils.h"
+#include "GC820/nano2D.h"
+#include "GC820/nano2D_util.h"
+
 
 namespace hobot_cv {
+
+void save_yuv(std::string name, struct timespec stamp, int w, int h,
+     void *data, int data_size) {
+  std::string yuv_path = "./yuv/";
+  uint64_t time_stamp = (stamp.tv_sec * 1000 + stamp.tv_nsec / 1000000);;
+  if (access(yuv_path.c_str(), F_OK) == 0) {
+
+    std::string yuv_file = "./yuv/" + name + std::to_string(time_stamp) + "_w" + std::to_string(w) + "_h" + std::to_string(h) + ".yuv";
+    RCLCPP_INFO(rclcpp::get_logger("mipi_node"),
+      "save yuv image: %s", yuv_file.c_str());
+    std::ofstream out(yuv_file, std::ios::out|std::ios::binary);
+    out.write(reinterpret_cast<char*>(data), data_size);
+    out.close();
+  }
+}
 
 int hobotcv_resize(const cv::Mat &src,
                    int src_h,
@@ -28,7 +47,132 @@ int hobotcv_resize(const cv::Mat &src,
                    cv::Mat &dst,
                    int dst_h,
                    int dst_w) {
-  return hobotcv_vps_resize(src, dst, dst_h, dst_w, cv::Range(0, 0), cv::Range(0, 0));
+#if 1
+  int ret;
+  int64_t msStart = 0, msEnd = 0;
+  {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    msStart = (ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
+  }
+
+  hobotcv_front& hobotcv = hobotcv_front::getInstance();
+
+  ret = hobotcv.prepareParam(src_w, src_h, dst_w, dst_h, cv::Range(0, 0), cv::Range(0, 0));
+  if (ret != 0) {
+    return -1;
+  }
+  
+  dst = cv::Mat(dst_h * 3 / 2, dst_w, CV_8UC1);
+  int dst_size = dst_w * dst_h * 1.5;
+  ret = hobotcv.processFrame((const char*)src.data, src_w, src_h, (char*)dst.data, dst_size);
+  if (ret != 0) {
+    return -1;
+  }
+
+  //ret = hobotcv_vps_resize(
+  //      src, dst, dst_h, dst_w, cv::Range(0, 0), cv::Range(0, 0));
+  {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    msEnd = (ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
+  }
+    RCLCPP_INFO(rclcpp::get_logger("hobot_cv"),
+            "hobotcv_resize vps laps ms= %d", (msEnd - msStart));  
+#else
+  n2d_buffer_format_t format = N2D_NV12;
+  float data_rate = 1.5;
+  switch (format) {
+    case N2D_NV12:
+      data_rate = 1.5;
+      break;
+    case N2D_RGB888:
+      data_rate = 3;
+      break;
+    default:
+      return -1;
+  }
+  std::shared_ptr<n2d_buffer_t> src_ptr = std::make_shared<n2d_buffer_t>();
+  std::shared_ptr<n2d_buffer_t> dst_ptr = std::make_shared<n2d_buffer_t>();
+  do {
+    struct timespec stamp;
+    clock_gettime(CLOCK_MONOTONIC, &stamp);
+    save_yuv("raw",stamp,src_w,src_h,src.data,src_w * src_h * 1.5);
+    int64_t msStart = 0, msEnd = 0;
+    {
+      struct timespec ts;
+      clock_gettime(CLOCK_MONOTONIC, &ts);
+      msStart = (ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
+    }
+    int error = n2d_open();
+    if (N2D_IS_ERROR(error)) {
+      printf("open context failed! error=%d.\n", error);
+      //n2d_close();
+      return -1;
+    }
+    /* switch to default device and core */
+    error = n2d_switch_device(N2D_DEVICE_0);
+    if (N2D_IS_ERROR(error)) {
+      printf("switch device context failed! error=%d.\n", error);
+      n2d_close();
+      return -1;
+    }
+    error = n2d_switch_core(N2D_CORE_0);
+    if (N2D_IS_ERROR(error)) {
+      printf("switch core context failed! error=%d.\n", error);
+      //n2d_close();
+      return -1;
+    }
+
+    error = n2d_util_allocate_buffer(src_w, src_h, format, N2D_0, N2D_LINEAR, N2D_TSC_DISABLE, src_ptr.get());
+    if (N2D_IS_ERROR(error))  {
+      printf("n2d_util_allocate_buffer, src error=%d.\n", error);
+      //n2d_close();
+      return -1;
+    }
+
+    error = n2d_util_allocate_buffer(dst_w, dst_h, format, N2D_0, N2D_LINEAR, N2D_TSC_DISABLE, dst_ptr.get());
+    if (N2D_IS_ERROR(error)) {
+      printf("n2d_util_allocate_buffer, dst error=%d.\n", error);
+      n2d_free(src_ptr.get());
+      return -1;
+    }
+    
+    memcpy(src_ptr->memory, src.data, src_w * src_h * data_rate);
+
+    error = n2d_blit(dst_ptr.get(), N2D_NULL, src_ptr.get(), N2D_NULL, N2D_BLEND_NONE);
+    if (N2D_IS_ERROR(error)) {
+      printf("blit error, error=%d.\n", error);
+      break;
+    }
+    error = n2d_commit();
+    if (N2D_IS_ERROR(error)) {
+        printf("blit error, error=%d.\n", error);
+        break;
+    }
+    if (format == N2D_RGB888) {
+      dst.create(dst_h, dst_w, CV_8UC3);
+      memcpy(dst.data, dst_ptr->memory, dst_w * dst_h * 3);
+    } else {
+      dst.create(dst_h * 1.5, dst_w, CV_8UC1);
+      memcpy(dst.data, dst_ptr->memory, dst_w * dst_h * 1.5);
+    }
+    {
+      struct timespec ts;
+      clock_gettime(CLOCK_MONOTONIC, &ts);
+      msEnd = (ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
+    }
+    save_yuv("n2d",stamp,dst_w,dst_h,dst.data,dst_w * dst_h * data_rate);
+    RCLCPP_INFO(rclcpp::get_logger("hobot_cv"),
+            "hobotcv_resize laps ms= %d", (msEnd - msStart));
+
+  } while(0);
+  n2d_free(src_ptr.get());
+  n2d_free(dst_ptr.get());
+  //n2d_close();
+#endif
+  return 0;
+
 }
 
 cv::Mat hobotcv_crop(const cv::Mat &src,
@@ -39,15 +183,40 @@ cv::Mat hobotcv_crop(const cv::Mat &src,
                      const cv::Range &rowRange,
                      const cv::Range &colRange,
                      HobotcvSpeedUpType type) {
-  // VPS加速
-  if (type == HOBOTCV_VPS) {
-    cv::Mat dst;
-    int ret = hobotcv_vps_resize(src, dst, dst_h, dst_w, rowRange, colRange);
-    return dst;
+  
+#if 1
+  cv::Mat dst_null;
+  int ret;
+  int64_t msStart = 0, msEnd = 0;
+  {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    msStart = (ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
   }
 
-  // CPU实现
+  hobotcv_front& hobotcv = hobotcv_front::getInstance();
+
+  ret = hobotcv.prepareParam(src_w, src_h, dst_w, dst_h, rowRange, colRange);
+  if (ret != 0) {
+    return dst_null;
+  }
+  
   cv::Mat dst(dst_h * 3 / 2, dst_w, CV_8UC1);
+  int dst_size = dst_w * dst_h * 1.5;
+  ret = hobotcv.processFrame((const char*)src.data, src_w, src_h, (char*)dst.data, dst_size);
+  if (ret != 0) {
+    return dst_null;
+  }
+
+  {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    msEnd = (ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
+  }
+    RCLCPP_INFO(rclcpp::get_logger("hobot_cv"),
+            "hobotcv_resize vps laps ms= %d", (msEnd - msStart));  
+#else
+  cv::Mat dst;
   if (rowRange.end > src_h || colRange.end > src_w || rowRange.start < 0 || colRange.start < 0) {  // crop区域要在原图范围内
     RCLCPP_ERROR(
         rclcpp::get_logger("hobot_cv crop"),
@@ -62,73 +231,112 @@ cv::Mat hobotcv_crop(const cv::Mat &src,
         src_w);
     return dst;
   }
-
-  hbDNNRoi roi;
-  int range_h = 0, range_w = 0;
-  if (colRange.end - colRange.start <= 0 || rowRange.end - rowRange.start <= 0) {
-    roi.left = 0;
-    roi.top = 0;
-    roi.right = 0;
-    roi.bottom = 0;
-  } else {
-    roi.left = colRange.start;
-    roi.top = rowRange.start;
-    roi.right = (colRange.end - 1) < 0 ? 0 : (colRange.end - 1);
-    roi.bottom = (rowRange.end - 1) < 0 ? 0 : (rowRange.end - 1);
-    range_h = rowRange.end - rowRange.start;
-    range_w = colRange.end - colRange.start;
+  n2d_buffer_format_t format = N2D_NV12;
+  float data_rate = 1.5;
+  switch (format) {
+    case N2D_NV12:
+      data_rate = 1.5;
+      break;
+    case N2D_RGB888:
+      data_rate = 3;
+      break;
+    default:
+      return dst;
   }
+  std::shared_ptr<n2d_buffer_t> src_ptr = std::make_shared<n2d_buffer_t>();
+  std::shared_ptr<n2d_buffer_t> dst_ptr = std::make_shared<n2d_buffer_t>();
+  do {
+    int64_t msStart = 0, msEnd = 0;
+    {
+      struct timespec ts;
+      clock_gettime(CLOCK_MONOTONIC, &ts);
+      msStart = (ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
+    }
+    int error = n2d_open();
+    if (N2D_IS_ERROR(error)) {
+      printf("open context failed! error=%d.\n", error);
+      //n2d_close();
+      return dst;
+    }
+    /* switch to default device and core */
+    error = n2d_switch_device(N2D_DEVICE_0);
+    if (N2D_IS_ERROR(error)) {
+      printf("switch device context failed! error=%d.\n", error);
+      n2d_close();
+      return dst;
+    }
+    error = n2d_switch_core(N2D_CORE_0);
+    if (N2D_IS_ERROR(error)) {
+      printf("switch core context failed! error=%d.\n", error);
+      //n2d_close();
+      return dst;
+    }
 
-  // CPU 实现要保证以下条件
-  assert (range_h == dst_h && range_w == dst_w);
+    error = n2d_util_allocate_buffer(src_w, src_h, format, N2D_0, N2D_LINEAR, N2D_TSC_DISABLE, src_ptr.get());
+    if (N2D_IS_ERROR(error))  {
+      printf("n2d_util_allocate_buffer, src error=%d.\n", error);
+      //n2d_close();
+      return dst;
+    }
 
-  auto srcdata = reinterpret_cast<const uint8_t *>(src.data);
-  auto dstdata = dst.data;
-  // copy y
-  for (int h = 0; h < dst_h; ++h) {
-    auto *raw = dstdata + h * dst_w;
-    auto *src = srcdata + (h + roi.top) * src_w + roi.left;
-    memcpy(raw, src, dst_w);
-  }
+    error = n2d_util_allocate_buffer(dst_w, dst_h, format, N2D_0, N2D_LINEAR, N2D_TSC_DISABLE, dst_ptr.get());
+    if (N2D_IS_ERROR(error)) {
+      printf("n2d_util_allocate_buffer, dst error=%d.\n", error);
+      n2d_free(src_ptr.get());
+      return dst;
+    }
+    
+    memcpy(src_ptr->memory, src.data, src_w * src_h * data_rate);
 
-  // copy uv
-  auto uv_data = srcdata + src_h * src_w;
-  auto dstuvdata = dstdata + dst_h * dst_w;
-  for (int32_t h = 0; h < dst_h / 2; ++h) {
-    auto *raw = dstuvdata + h * dst_w;
-    auto *src = uv_data + (h + (roi.top / 2)) * src_w + roi.left;
-    memcpy(raw, src, dst_w);
-  }
 
+    n2d_rectangle_t dst_src;
+    dst_src.x = 0;
+    dst_src.y = 0;
+    dst_src.width  = dst_w;
+    dst_src.height = dst_h;
+
+
+    n2d_rectangle_t src_rect;
+    src_rect.x = colRange.start;
+    src_rect.y = rowRange.start;
+    src_rect.width  = colRange.end - colRange.start;
+    src_rect.height = rowRange.end - rowRange.start;
+
+    error = n2d_blit(dst_ptr.get(), &dst_src, src_ptr.get(), &src_rect, N2D_BLEND_NONE);
+    if (N2D_IS_ERROR(error)) {
+      printf("blit error, error=%d.\n", error);
+      break;
+    }
+    error = n2d_commit();
+    if (N2D_IS_ERROR(error)) {
+        printf("blit error, error=%d.\n", error);
+        break;
+    }
+    if (format == N2D_RGB888) {
+      dst.create(dst_h, dst_w, CV_8UC3);
+      memcpy(dst.data, dst_ptr->memory, dst_w * dst_h * 3);
+    } else {
+      dst.create(dst_h * 1.5, dst_w, CV_8UC1);
+      memcpy(dst.data, dst_ptr->memory, dst_w * dst_h * 1.5);
+    }
+    {
+      struct timespec ts;
+      clock_gettime(CLOCK_MONOTONIC, &ts);
+      msEnd = (ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
+    }
+    RCLCPP_INFO(rclcpp::get_logger("hobot_cv"),
+            "hobotcv_resize laps ms= %d", (msEnd - msStart));
+
+  } while(0);
+  n2d_free(src_ptr.get());
+  n2d_free(dst_ptr.get());
+  //n2d_close();
+#endif
   return dst;
 }
 
 int hobotcv_rotate(const cv::Mat &src, cv::Mat &dst, ROTATION_E rotation) {
-  hobotcv_front hobotcv;
-  int ret =
-      hobotcv.prepareRotateParam(src.cols, src.rows * 2 / 3, (int)rotation);
-  if (ret != 0) {
-    return -1;
-  }
-  hobotcv.src_w = src.cols;
-  hobotcv.src_h = src.rows * 2 / 3;
-  hobotcv.dst_w = src.cols;
-  hobotcv.dst_h = src.rows * 2 / 3;
-
-  ret = hobotcv.groupScheduler();
-  if (ret != 0) {
-    return -1;
-  }
-  ret = hobotcv.sendVpsFrame(
-      reinterpret_cast<const char *>(src.data), hobotcv.src_h, hobotcv.src_w);
-  if (ret != 0) {
-    return -1;
-  }
-  ret = hobotcv.getChnFrame(dst);
-  if (ret != 0) {
-    return -1;
-  }
-  return 0;
+  return -1;
 }
 
 int hobotcv_imgproc(const cv::Mat &src,
@@ -138,89 +346,7 @@ int hobotcv_imgproc(const cv::Mat &src,
                     ROTATION_E rotate,
                     const cv::Range &rowRange,
                     const cv::Range &colRange) {
-  int src_h = src.rows * 2 / 3;
-  int src_w = src.cols;
-
-  hobotcv_front hobotcv;
-  int ret =
-      hobotcv.prepareCropRoi(src_h, src_w, dst_w, dst_h, rowRange, colRange);
-  if (ret != 0) {
-    return -1;
-  }
-
-  ret = hobotcv.prepareResizeParam(src_w, src_h, dst_w, dst_h);
-  if (0 != ret) {
-    return -1;
-  }
-
-  ret = hobotcv.prepareRotateParam(dst_w, dst_h, (int)rotate);
-  if (ret != 0) {
-    return -1;
-  }
-  if (hobotcv.roi.height == dst_h && hobotcv.roi.width == dst_w &&
-      hobotcv.rotate == 0) {  // only crop
-    auto srcdata = reinterpret_cast<const uint8_t *>(src.data);
-    dst = cv::Mat(dst_h * 3 / 2, dst_w, CV_8UC1);
-    auto dstdata = dst.data;
-    // copy y
-    for (int h = 0; h < dst_h; ++h) {
-      auto *raw = dstdata + h * dst_w;
-      auto *src = srcdata + (h + hobotcv.roi.y) * src_w + hobotcv.roi.x;
-      memcpy(raw, src, dst_w);
-    }
-
-    // copy uv
-    auto uv_data = srcdata + src_h * src_w;
-    auto dstuvdata = dstdata + dst_h * dst_w;
-    for (int32_t h = 0; h < dst_h / 2; ++h) {
-      auto *raw = dstuvdata + h * dst_w;
-      auto *src = uv_data + (h + (hobotcv.roi.y / 2)) * src_w + hobotcv.roi.x;
-      memcpy(raw, src, dst_w);
-    }
-    return 0;
-  }
-
-  ret = hobotcv.groupScheduler();
-  if (ret != 0) {
-    return -1;
-  }
-  ret = hobotcv.sendVpsFrame(
-      reinterpret_cast<const char *>(src.data), src_h, src_w);
-  if (ret != 0) {
-    return -1;
-  }
-  ret = hobotcv.getChnFrame(dst);
-  if (ret != 0) {
-    return -1;
-  }
-  return 0;
-}
-
-int hobotcv_pymscale(const cv::Mat &src,
-                     OutputPyramid *output,
-                     const PyramidAttr &attr) {
-  int src_h = src.rows * 2 / 3;
-  int src_w = src.cols;
-  hobotcv_front hobotcv;
-  auto ret = hobotcv.preparePymraid(src_h, src_w, attr);
-  if (0 != ret) {
-    return -1;
-  }
-
-  ret = hobotcv.groupScheduler();
-  if (ret != 0) {
-    return -1;
-  }
-  ret = hobotcv.sendVpsFrame(
-      reinterpret_cast<const char *>(src.data), src_h, src_w);
-  if (ret != 0) {
-    return -1;
-  }
-  ret = hobotcv.getPyramidOutputImage(output);
-  if (ret != 0) {
-    return -1;
-  }
-  return 0;
+  return -1;
 }
 
 HobotcvImagePtr hobotcv_BorderPadding(const char *src,
@@ -256,21 +382,138 @@ std::shared_ptr<ImageInfo> hobotcv_resize(const char *src,
                                           int src_w,
                                           int dst_h,
                                           int dst_w) {
-  int out_h = dst_h, out_w = dst_w;
-  auto *dst_sysMem = hobotcv_vps_resize(src, src_h, src_w, out_h, out_w, cv::Range(0, 0), cv::Range(0, 0));
-  if (dst_sysMem == nullptr) {
+#if 1
+  int ret;
+  int64_t msStart = 0, msEnd = 0;
+  {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    msStart = (ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
+  }
+
+  hobotcv_front& hobotcv = hobotcv_front::getInstance();
+
+  ret = hobotcv.prepareParam(src_w, src_h, dst_w, dst_h, cv::Range(0, 0), cv::Range(0, 0));
+  if (ret != 0) {
     return nullptr;
   }
+  
+  //dst = cv::Mat(dst_h * 3 / 2, dst_w, CV_8UC1);
+
+  int dst_size = dst_w * dst_h * 1.5;
+  char* dst = (char *)malloc(dst_size);
+  ret = hobotcv.processFrame(src, src_w, src_h, dst, dst_size);
+  if (ret != 0) {
+    return nullptr;
+  }
+  {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    msEnd = (ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
+  }
+    RCLCPP_INFO(rclcpp::get_logger("hobot_cv"),
+            "hobotcv_resize vps laps ms= %d", (msEnd - msStart));  
   auto imageInfo = new ImageInfo;
-  imageInfo->width = out_w;
-  imageInfo->height = out_h;
-  imageInfo->imageAddr = dst_sysMem->virAddr;
+  imageInfo->width = dst_w;
+  imageInfo->height = dst_h;
+  imageInfo->imageAddr = dst;
   return std::shared_ptr<ImageInfo>(imageInfo,
-                                    [dst_sysMem](ImageInfo *imageInfo) {
-                                      hbSysFreeMem(dst_sysMem);
-                                      delete dst_sysMem;
+                                    [dst](ImageInfo *imageInfo) {
+                                      free(dst);
                                       delete imageInfo;
                                     });
+#else
+  n2d_buffer_format_t format = N2D_NV12;
+  float data_rate = 1.5;
+  switch (format) {
+    case N2D_NV12:
+      data_rate = 1.5;
+      break;
+    case N2D_RGB888:
+      data_rate = 3;
+      break;
+    default:
+      return nullptr;
+  }
+  std::shared_ptr<ImageInfo> image_ptr = nullptr;
+  std::shared_ptr<n2d_buffer_t> src_ptr = std::make_shared<n2d_buffer_t>();
+  std::shared_ptr<n2d_buffer_t> dst_ptr = std::make_shared<n2d_buffer_t>();
+  do {
+    int64_t msStart = 0, msEnd = 0;
+    {
+      struct timespec ts;
+      clock_gettime(CLOCK_MONOTONIC, &ts);
+      msStart = (ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
+    }
+    int error = n2d_open();
+    if (N2D_IS_ERROR(error)) {
+      printf("open context failed! error=%d.\n", error);
+      //n2d_close();
+      return image_ptr;
+    }
+    /* switch to default device and core */
+    error = n2d_switch_device(N2D_DEVICE_0);
+    if (N2D_IS_ERROR(error)) {
+      printf("switch device context failed! error=%d.\n", error);
+      //n2d_close();
+      return image_ptr;
+    }
+    error = n2d_switch_core(N2D_CORE_0);
+    if (N2D_IS_ERROR(error)) {
+      printf("switch core context failed! error=%d.\n", error);
+      //n2d_close();
+      return image_ptr;
+    }
+
+    error = n2d_util_allocate_buffer(src_w, src_h, format, N2D_0, N2D_LINEAR, N2D_TSC_DISABLE, src_ptr.get());
+    if (N2D_IS_ERROR(error))  {
+      printf("n2d_util_allocate_buffer, src error=%d.\n", error);
+      //n2d_close();
+      return image_ptr;
+    }
+
+    error = n2d_util_allocate_buffer(dst_w, dst_h, format, N2D_0, N2D_LINEAR, N2D_TSC_DISABLE, dst_ptr.get());
+    if (N2D_IS_ERROR(error)) {
+      printf("n2d_util_allocate_buffer, dst error=%d.\n", error);
+      n2d_free(src_ptr.get());
+      return image_ptr;
+    }
+    
+    memcpy(src_ptr->memory, src, src_w * src_h * data_rate);
+
+    error = n2d_blit(dst_ptr.get(), N2D_NULL, src_ptr.get(), N2D_NULL, N2D_BLEND_NONE);
+    if (N2D_IS_ERROR(error)) {
+      printf("blit error, error=%d.\n", error);
+      break;
+    }
+    error = n2d_commit();
+    if (N2D_IS_ERROR(error)) {
+        printf("blit error, error=%d.\n", error);
+        break;
+    }
+    {
+      struct timespec ts;
+      clock_gettime(CLOCK_MONOTONIC, &ts);
+      msEnd = (ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
+    }
+    RCLCPP_INFO(rclcpp::get_logger("hobot_cv"),
+            "hobotcv_resize laps ms= %d", (msEnd - msStart));
+    auto imageInfo = new ImageInfo;
+    imageInfo->width = dst_w;
+    imageInfo->height = dst_h;
+    imageInfo->imageAddr = dst_ptr->memory;
+    n2d_free(src_ptr.get());
+    return std::shared_ptr<ImageInfo>(imageInfo,
+                                      [dst_ptr](ImageInfo *imageInfo) {
+                                        n2d_free(dst_ptr.get());
+                                        delete imageInfo;
+                                      });
+  } while(0);
+  n2d_free(src_ptr.get());
+  n2d_free(dst_ptr.get());
+  //n2d_close();
+  return image_ptr;
+#endif
 }
 
 std::shared_ptr<ImageInfo> hobotcv_crop(const char *src,
@@ -281,26 +524,47 @@ std::shared_ptr<ImageInfo> hobotcv_crop(const char *src,
                                         const cv::Range &rowRange,
                                         const cv::Range &colRange,
                                         HobotcvSpeedUpType type) {
-  int out_h = dst_h, out_w = dst_w;
-  // VPS加速
-  if (type == hobot_cv::HOBOTCV_VPS) {  //使用vps进行resize，调用hobotcv_vps_resize
-    auto *dst_SysMem = hobotcv_vps_resize(src, src_h, src_w, out_h, out_w, rowRange, colRange);
-    if (dst_SysMem == nullptr) {
-      return nullptr;
-    }
-    auto imageInfo = new ImageInfo;
-    imageInfo->width = out_w;
-    imageInfo->height = out_h;
-    imageInfo->imageAddr = dst_SysMem->virAddr;
-    return std::shared_ptr<ImageInfo>(imageInfo,
-                                      [dst_SysMem](ImageInfo *imageInfo) {
-                                        hbSysFreeMem(dst_SysMem);
-                                        delete dst_SysMem;
-                                        delete imageInfo;
-                                      });
+#if 1
+  int ret;
+  int64_t msStart = 0, msEnd = 0;
+  {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    msStart = (ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
   }
 
-  // CPU实现
+  hobotcv_front& hobotcv = hobotcv_front::getInstance();
+
+  ret = hobotcv.prepareParam(src_w, src_h, dst_w, dst_h, rowRange, colRange);
+  if (ret != 0) {
+    return nullptr;
+  }
+  
+  //dst = cv::Mat(dst_h * 3 / 2, dst_w, CV_8UC1);
+
+  int dst_size = dst_w * dst_h * 1.5;
+  char* dst = (char *)malloc(dst_size);
+  ret = hobotcv.processFrame(src, src_w, src_h, dst, dst_size);
+  if (ret != 0) {
+    return nullptr;
+  }
+  {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    msEnd = (ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
+  }
+    RCLCPP_INFO(rclcpp::get_logger("hobot_cv"),
+            "hobotcv_resize vps laps ms= %d", (msEnd - msStart));  
+  auto imageInfo = new ImageInfo;
+  imageInfo->width = dst_w;
+  imageInfo->height = dst_h;
+  imageInfo->imageAddr = dst;
+  return std::shared_ptr<ImageInfo>(imageInfo,
+                                    [dst](ImageInfo *imageInfo) {
+                                      free(dst);
+                                      delete imageInfo;
+                                    });
+#else
   if (rowRange.end > src_h || colRange.end > src_w || rowRange.start < 0 || colRange.start < 0) {  // crop区域要在原图范围内
     RCLCPP_ERROR(
         rclcpp::get_logger("hobot_cv crop"),
@@ -315,96 +579,118 @@ std::shared_ptr<ImageInfo> hobotcv_crop(const char *src,
         src_w);
     return nullptr;
   }
-
-  hbDNNRoi roi;
-  int range_h = 0, range_w = 0;
-  if (colRange.end - colRange.start <= 0 || rowRange.end - rowRange.start <= 0) {
-    roi.left = 0;
-    roi.top = 0;
-    roi.right = 0;
-    roi.bottom = 0;
-  } else {
-    roi.left = colRange.start;
-    roi.top = rowRange.start;
-    roi.right = (colRange.end - 1) < 0 ? 0 : (colRange.end - 1);
-    roi.bottom = (rowRange.end - 1) < 0 ? 0 : (rowRange.end - 1);
-    range_h = rowRange.end - rowRange.start;
-    range_w = colRange.end - colRange.start;
+  n2d_buffer_format_t format = N2D_NV12;
+  float data_rate = 1.5;
+  switch (format) {
+    case N2D_NV12:
+      data_rate = 1.5;
+      break;
+    case N2D_RGB888:
+      data_rate = 3;
+      break;
+    default:
+      return nullptr;
   }
+  std::shared_ptr<ImageInfo> image_ptr = nullptr;
+  std::shared_ptr<n2d_buffer_t> src_ptr = std::make_shared<n2d_buffer_t>();
+  std::shared_ptr<n2d_buffer_t> dst_ptr = std::make_shared<n2d_buffer_t>();
+  do {
+    int64_t msStart = 0, msEnd = 0;
+    {
+      struct timespec ts;
+      clock_gettime(CLOCK_MONOTONIC, &ts);
+      msStart = (ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
+    }
+    int error = n2d_open();
+    if (N2D_IS_ERROR(error)) {
+      printf("open context failed! error=%d.\n", error);
+      //n2d_close();
+      return image_ptr;
+    }
+    /* switch to default device and core */
+    error = n2d_switch_device(N2D_DEVICE_0);
+    if (N2D_IS_ERROR(error)) {
+      printf("switch device context failed! error=%d.\n", error);
+      //n2d_close();
+      return image_ptr;
+    }
+    error = n2d_switch_core(N2D_CORE_0);
+    if (N2D_IS_ERROR(error)) {
+      printf("switch core context failed! error=%d.\n", error);
+      //n2d_close();
+      return image_ptr;
+    }
 
-  // CPU 实现要保证以下条件
-  assert (range_h == dst_h && range_w == dst_w);
+    error = n2d_util_allocate_buffer(src_w, src_h, format, N2D_0, N2D_LINEAR, N2D_TSC_DISABLE, src_ptr.get());
+    if (N2D_IS_ERROR(error))  {
+      printf("n2d_util_allocate_buffer, src error=%d.\n", error);
+      //n2d_close();
+      return image_ptr;
+    }
 
-  auto srcdata = reinterpret_cast<const uint8_t *>(src);
-  size_t dst_size = dst_h * dst_w * 3 / 2;
-  auto *dst_SysMem = new hbSysMem;
-  hbSysAllocCachedMem(dst_SysMem, dst_size);
-  auto dstdata = reinterpret_cast<uint8_t *>(dst_SysMem->virAddr);
-  // copy y
-  for (int h = 0; h < dst_h; ++h) {
-    auto *raw = dstdata + h * dst_w;
-    auto *src_y = srcdata + (h + roi.top) * src_w + roi.left;
-    memcpy(raw, src_y, dst_w);
-  }
+    error = n2d_util_allocate_buffer(dst_w, dst_h, format, N2D_0, N2D_LINEAR, N2D_TSC_DISABLE, dst_ptr.get());
+    if (N2D_IS_ERROR(error)) {
+      printf("n2d_util_allocate_buffer, dst error=%d.\n", error);
+      n2d_free(src_ptr.get());
+      return image_ptr;
+    }
+    
+    memcpy(src_ptr->memory, src, src_w * src_h * data_rate);
 
-  // copy uv
-  auto uv_data = srcdata + src_h * src_w;
-  auto dstuvdata = dstdata + dst_h * dst_w;
-  for (int32_t h = 0; h < dst_h / 2; ++h) {
-    auto *raw = dstuvdata + h * dst_w;
-    auto *src_uv = uv_data + (h + (roi.top / 2)) * src_w + roi.left;
-    memcpy(raw, src_uv, dst_w);
-  }
-  hbSysFlushMem(dst_SysMem, HB_SYS_MEM_CACHE_CLEAN);
-  auto imageInfo = new ImageInfo;
-  imageInfo->width = dst_w;
-  imageInfo->height = dst_h;
-  imageInfo->imageAddr = dst_SysMem->virAddr;
-  return std::shared_ptr<ImageInfo>(imageInfo,
-                                    [dst_SysMem](ImageInfo *imageInfo) {
-                                      hbSysFreeMem(dst_SysMem);
-                                      delete dst_SysMem;
-                                      delete imageInfo;
-                                    });
+        n2d_rectangle_t dst_src;
+    dst_src.x = 0;
+    dst_src.y = 0;
+    dst_src.width  = dst_w;
+    dst_src.height = dst_h;
+
+
+    n2d_rectangle_t src_rect;
+    src_rect.x = colRange.start;
+    src_rect.y = rowRange.start;
+    src_rect.width  = colRange.end - colRange.start;
+    src_rect.height = rowRange.end - rowRange.start;
+
+    error = n2d_blit(dst_ptr.get(), &dst_src, src_ptr.get(), &src_rect, N2D_BLEND_NONE);
+    if (N2D_IS_ERROR(error)) {
+      printf("blit error, error=%d.\n", error);
+      break;
+    }
+    error = n2d_commit();
+    if (N2D_IS_ERROR(error)) {
+        printf("blit error, error=%d.\n", error);
+        break;
+    }
+    {
+      struct timespec ts;
+      clock_gettime(CLOCK_MONOTONIC, &ts);
+      msEnd = (ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
+    }
+    RCLCPP_INFO(rclcpp::get_logger("hobot_cv"),
+            "hobotcv_resize laps ms= %d", (msEnd - msStart));
+    auto imageInfo = new ImageInfo;
+    imageInfo->width = dst_w;
+    imageInfo->height = dst_h;
+    imageInfo->imageAddr = dst_ptr->memory;
+    n2d_free(src_ptr.get());
+    return std::shared_ptr<ImageInfo>(imageInfo,
+                                      [dst_ptr](ImageInfo *imageInfo) {
+                                        n2d_free(dst_ptr.get());
+                                        delete imageInfo;
+                                      });
+  } while(0);
+  n2d_free(src_ptr.get());
+  n2d_free(dst_ptr.get());
+  //n2d_close();
+  return image_ptr;
+#endif
 }
 
 std::shared_ptr<ImageInfo> hobotcv_rotate(const char *src,
                                           int src_h,
                                           int src_w,
                                           ROTATION_E rotate) {
-  hobotcv_front hobotcv;
-  int ret = hobotcv.prepareRotateParam(src_w, src_h, (int)rotate);
-  if (ret != 0) {
-    return nullptr;
-  }
-  hobotcv.src_w = src_w;
-  hobotcv.src_h = src_h;
-  hobotcv.dst_w = src_w;
-  hobotcv.dst_h = src_h;
-
-  ret = hobotcv.groupScheduler();
-  if (ret != 0) {
-    return nullptr;
-  }
-  ret = hobotcv.sendVpsFrame(src, src_h, src_w);
-  if (ret != 0) {
-    return nullptr;
-  }
-  int dst_h = 0, dst_w = 0;
-  auto *dst_SysMem = hobotcv.getChnFrame(dst_h, dst_w);
-  if (dst_SysMem == nullptr) {
-    return nullptr;
-  }
-  auto imageInfo = new ImageInfo;
-  imageInfo->width = dst_w;
-  imageInfo->height = dst_h;
-  imageInfo->imageAddr = dst_SysMem->virAddr;
-  return std::shared_ptr<ImageInfo>(imageInfo,
-                                    [dst_SysMem](ImageInfo *imageInfo) {
-                                      hbSysFreeMem(dst_SysMem);
-                                      delete dst_SysMem;
-                                      delete imageInfo;
-                                    });
+  std::shared_ptr<ImageInfo> image_ptr = nullptr;
+  return image_ptr;
 }
 
 std::shared_ptr<ImageInfo> hobotcv_imgproc(const char *src,
@@ -415,108 +701,9 @@ std::shared_ptr<ImageInfo> hobotcv_imgproc(const char *src,
                                            ROTATION_E rotate,
                                            const cv::Range &rowRange,
                                            const cv::Range &colRange) {
-  hobotcv_front hobotcv;
-  int ret =
-      hobotcv.prepareCropRoi(src_h, src_w, dst_w, dst_h, rowRange, colRange);
-  if (ret != 0) {
-    return nullptr;
-  }
-
-  ret = hobotcv.prepareResizeParam(src_w, src_h, dst_w, dst_h);
-  if (0 != ret) {
-    return nullptr;
-  }
-
-  ret = hobotcv.prepareRotateParam(dst_w, dst_h, (int)rotate);
-  if (ret != 0) {
-    return nullptr;
-  }
-  if (hobotcv.roi.height == dst_h && hobotcv.roi.width == dst_w &&
-      hobotcv.rotate == 0) {  // only crop
-    auto srcdata = reinterpret_cast<const uint8_t *>(src);
-    size_t dst_size = dst_h * dst_w * 3 / 2;
-    auto *dst_SysMem = new hbSysMem;
-    hbSysAllocCachedMem(dst_SysMem, dst_size);
-    auto dstdata = reinterpret_cast<uint8_t *>(dst_SysMem->virAddr);
-    // copy y
-    for (int h = 0; h < dst_h; ++h) {
-      auto *raw = dstdata + h * dst_w;
-      auto *src_raw = srcdata + (h + hobotcv.roi.y) * src_w + hobotcv.roi.x;
-      memcpy(raw, src_raw, dst_w);
-    }
-
-    // copy uv
-    auto uv_data = srcdata + src_h * src_w;
-    auto dstuvdata = dstdata + dst_h * dst_w;
-    for (int32_t h = 0; h < dst_h / 2; ++h) {
-      auto *raw = dstuvdata + h * dst_w;
-      auto *src_raw =
-          uv_data + (h + (hobotcv.roi.y / 2)) * src_w + hobotcv.roi.x;
-      memcpy(raw, src_raw, dst_w);
-    }
-    hbSysFlushMem(dst_SysMem, HB_SYS_MEM_CACHE_CLEAN);
-
-    auto imageInfo = new ImageInfo;
-    imageInfo->width = dst_w;
-    imageInfo->height = dst_h;
-    imageInfo->imageAddr = dst_SysMem->virAddr;
-    return std::shared_ptr<ImageInfo>(imageInfo,
-                                      [dst_SysMem](ImageInfo *imageInfo) {
-                                        hbSysFreeMem(dst_SysMem);
-                                        delete dst_SysMem;
-                                        delete imageInfo;
-                                      });
-  }
-
-  ret = hobotcv.groupScheduler();
-  if (ret != 0) {
-    return nullptr;
-  }
-  ret = hobotcv.sendVpsFrame(src, src_h, src_w);
-  if (ret != 0) {
-    return nullptr;
-  }
-  int out_h = 0, out_w = 0;
-  auto *dst_SysMem = hobotcv.getChnFrame(out_h, out_w);
-  if (dst_SysMem == nullptr) {
-    return nullptr;
-  }
-  auto imageInfo = new ImageInfo;
-  imageInfo->width = out_w;
-  imageInfo->height = out_h;
-  imageInfo->imageAddr = dst_SysMem->virAddr;
-  return std::shared_ptr<ImageInfo>(imageInfo,
-                                    [dst_SysMem](ImageInfo *imageInfo) {
-                                      hbSysFreeMem(dst_SysMem);
-                                      delete dst_SysMem;
-                                      delete imageInfo;
-                                    });
+  std::shared_ptr<ImageInfo> image_ptr = nullptr;
+  return image_ptr;
 }
 
-int hobotcv_pymscale(const char *src,
-                     int src_h,
-                     int src_w,
-                     OutputPyramid *output,
-                     const PyramidAttr &attr) {
-  hobotcv_front hobotcv;
-  auto ret = hobotcv.preparePymraid(src_h, src_w, attr);
-  if (0 != ret) {
-    return -1;
-  }
-
-  ret = hobotcv.groupScheduler();
-  if (ret != 0) {
-    return -1;
-  }
-  ret = hobotcv.sendVpsFrame(src, src_h, src_w);
-  if (ret != 0) {
-    return -1;
-  }
-  ret = hobotcv.getPyramidOutputImage(output);
-  if (ret != 0) {
-    return -1;
-  }
-  return 0;
-}
 
 }  // namespace hobot_cv

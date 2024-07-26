@@ -103,15 +103,14 @@ SET(LINK_LIBS dnn opencv_world)
 if (PLATFORM_X5)
   # RDK X5 平台编译规则
   message("compile to x5 platform")
-  SET(VPS_LIBS isp_algo z hbmedia isp ion multimedia iar tinyalsa cjson diag gdcbin vio dl)
-  SET(NEON_LIBS hobotcv_neon_blur)
+  SET(VPS_LIBS z   tinyalsa cjson dl)
+  SET(NEON_LIBS  Nano2D Nano2Dutil vpf)
 
   # 编译libhobot_cv.so动态链接库
   add_library(${PROJECT_NAME} SHARED
     src/utils.cpp
     src/x5/hobotcv_imgproc/hobotcv_imgproc.cpp
     src/x5/hobotcv_imgproc/hobotcv_front.cpp
-    src/x5/hobotcv_imgproc/hobotcv_single.cpp
     src/x5/hobotcv_gaussian_blur.cpp
     src/x5/hobotcv_gaussian_blur_imp.cpp
   )
@@ -154,22 +153,16 @@ if (PLATFORM_X5)
     ${PROJECT_NAME}
     ${VPS_LIBS})
   
-  add_executable(pyramid_example_vps test/test_pyramid_vps.cpp)
-  target_link_libraries(pyramid_example_vps
-    ${LINK_LIBS}
-    ${PROJECT_NAME}
-    ${VPS_LIBS})
-
   add_executable(padding_example test/test_padding.cpp)
   target_link_libraries(padding_example
     ${LINK_LIBS}
     ${PROJECT_NAME})
 
-  add_executable(neon_example test/test_neon_blur.cpp)
-  target_link_libraries(neon_example
-    ${LINK_LIBS}
-    ${PROJECT_NAME}
-    ${VPS_LIBS})
+  #add_executable(neon_example test/test_neon_blur.cpp)
+  #target_link_libraries(neon_example
+  #  ${LINK_LIBS}
+  #  ${PROJECT_NAME}
+  #  ${VPS_LIBS})
 
   add_executable(test_gaussian_blur test/test_gaussian_blur.cpp)
   target_link_libraries(test_gaussian_blur
@@ -209,7 +202,7 @@ if (PLATFORM_X5)
 
   # Install executables
   install(
-    TARGETS padding_example test_gaussian_blur neon_example pyramid_example_vps
+    TARGETS padding_example test_gaussian_blur 
             resize_example_vps crop_example_cpu crop_example_vps rotate_example_vps imgproc_example_vps
     RUNTIME DESTINATION lib/${PROJECT_NAME}
   )

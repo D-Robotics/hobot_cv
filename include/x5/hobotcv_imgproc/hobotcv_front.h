@@ -14,7 +14,24 @@
 #ifndef HOBOTCV_FRONT_H
 #define HOBOTCV_FRONT_H
 
-#include "hobotcv_imgproc/hobotcv_single.h"
+#include <map>
+#include <memory>
+#include <mutex>
+#include <string>
+#include <iostream>
+#include <sys/timerfd.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <cstring>
+#include <system_error>
+#include <functional>
+#include <signal.h>
+
+#include "opencv2/core/mat.hpp"
+#include "opencv2/imgcodecs.hpp"
+#include "opencv2/imgproc.hpp"
+#include "hbn_api.h"
+#include "vse_cfg.h"
 
 namespace hobot_cv {
 
@@ -58,92 +75,60 @@ std::unique_ptr<char[]> hobotcv_reflect_padding(const char *src,
                                                 uint32_t left,
                                                 uint32_t right);
 
-/* hobotcv 使用vps加速进行resize，输入输出图片为Mat*/
-int hobotcv_vps_resize(const cv::Mat &src,
-                       cv::Mat &dst,
-                       int dst_h,
-                       int dst_w,
-                       const cv::Range &rowRange,
-                       const cv::Range &colRange);
-
-/* hobotcv 使用vps加速进行resize，输入输出图片为nv12格式数据的地址*/
-hbSysMem *hobotcv_vps_resize(const char *src,
-                             const int src_h,
-                             const int src_w,
-                             int &dst_h,
-                             int &dst_w,
-                             const cv::Range &rowRange,
-                             const cv::Range &colRange);
-
 class hobotcv_front {
  public:
-  explicit hobotcv_front();
-  ~hobotcv_front();
+  // 获取单体实例的静态方法
+  static hobotcv_front& getInstance() {
+      static hobotcv_front instance;  // 静态局部变量，只初始化一次
+      return instance;
+  }
+  // 禁止复制构造函数和赋值操作符
+  hobotcv_front(const hobotcv_front&) = delete;
+  hobotcv_front& operator=(const hobotcv_front&) = delete;
 
-  int prepareResizeParam(int src_width,
-                         int src_height,
-                         int dst_width,
-                         int dst_height,
-                         bool printLog = true);
 
-  int prepareRotateParam(int width, int height, int rotation);
-
-  int prepareCropRoi(int src_height,
+  int prepareParam(int src_height,
                      int src_width,
                      int dst_width,
                      int dst_height,
-                     const cv::Range &rowRange,
-                     const cv::Range &colRange,
+                     cv::Range rowRange,
+                     cv::Range colRange,
                      bool printLog = true);
 
-  int preparePymraid(int src_height, int src_width, const PyramidAttr &attr);
-
-  int groupScheduler();
-
-  int setVpsChannelAttr();
-
-  int sendVpsFrame(const char *src, int src_h, int src_w);
-
-  int getChnFrame(cv::Mat &dst);
-
-  hbSysMem *getChnFrame(int &dst_h, int &dst_w);
-
-  int getPyramidOutputImage(OutputPyramid *output);
+  int processFrame(const char *src, int input_w, int input_h, char *dst, int dst_size);
 
  private:
-  int createGroup();
-  int setChannelAttr(int enscale);
-  int setChannelRotate();
-  int setChannelPyramidAttr();
-  int group_sem_wait();
-  int group_sem_post();
-  //初始化channel后才支持channel的动态设置
-  int groupChn1Init(int group_id, int max_w, int max_h);    // pym channel
-  int groupChn2Init(int group_id, int max_w, int max_h);    // down scale Init
-  int groupChn5Init(int group_id, int max_w, int max_h);    // up scale init
-  int groupPymChnInit(int group_id, int max_w, int max_h);  // pyramid init
+  explicit hobotcv_front() {}
+  // 防止外部删除
+  ~hobotcv_front() {}
 
-  int copyOutputImage(int stride,
-                      int width,
-                      int height,
-                      address_info_t &img_addr,
-                      void *output);
+  int creat_vse_node();
+  int start_vse_node();
+  int stop_vse_node();
+  int destroy_vse_node();
+  int creat_vflow_node();
+  int set_vse_attr();
 
  public:
   int src_w;
   int src_h;
   int dst_w;
   int dst_h;
-  int rotate = 0;
-  CropRect roi;
-  PyramidParam pym_param;
-  int group_id;
-  int channel_id;
+  int roi_x;
+  int roi_y;
+  int roi_w;
+  int roi_h;
+
 
  private:
-  hobotcv_single *observe;
   int processId = 0;
   int ds_layer_en = 0;
+  hbn_vnode_handle_t vse_node_handle;
+  hbn_vflow_handle_t vflow_fd;
+  uint32_t chn_id = 0;
+  bool m_inited_ = false;
+  bool start_ = 0;
+
 };
 
 }  // namespace hobot_cv

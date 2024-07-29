@@ -5,7 +5,7 @@ Getting Started with hobot_cv
 
 # Feature Introduction
 
-The hobot_cv package is part of the Horizon Robotics robot development platform, providing image processing acceleration interfaces for bpu and vps for application development. Currently, functions such as image crop, resize, rotate, border padding, and pyramid scaling have been implemented, supporting only the nv12 format.
+The hobot_cv package is part of the D-Robotics robot development platform, providing image processing acceleration interfaces for bpu and vps for application development. Currently, functions such as image crop, resize, rotate, border padding, and pyramid scaling have been implemented, supporting only the nv12 format.
 
 hobot_cv Gaussian filtering and mean filtering interfaces support bpu and neon acceleration.
 
@@ -413,7 +413,7 @@ Parameters:
 [Introduction to hobotcv_benchmark](./benchmark/README.md)
 
 ## Run
-- After successful compilation, copy the generated install path to Horizon X3 development board (ignore the copying step if compiling on X3), and execute the following command to run.
+- After successful compilation, copy the generated install path to RDK X3 development board (ignore the copying step if compiling on X3), and execute the following command to run.
 
 ## Running on X3 Ubuntu system
 

@@ -4,7 +4,7 @@
   <name>hobot_cv</name>
   <version>2.1.3</version>
   <description>TogetheROS hobot cv</description>
-  <maintainer email="zhenwei.liu@horizon.ai">liuzw</maintainer>
+  <maintainer email="zhenwei.liu@d-robotics.cc">liuzw</maintainer>
   <license>Apache License 2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>

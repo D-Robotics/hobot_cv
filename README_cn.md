@@ -5,7 +5,7 @@ Getting Started with hobot_cv
 
 # 功能介绍
 
-hobot_cv package是地平线机器人开发平台的一部分，为应用开发提供了bpu和vps的图片处理加速接口。目前实现了图片的crop, resize, rotate，边界填充以及金字塔缩放功能，只支持nv12格式。
+hobot_cv package为应用开发提供了bpu和vps的图片处理加速接口。目前实现了图片的crop, resize, rotate，边界填充以及金字塔缩放功能，只支持nv12格式。
 
 hobot_cv高斯滤波和均值滤波接口，支持bpu和neon加速。
 
@@ -415,7 +415,7 @@ int HobotMeanBlur(const cv::Mat &src, cv::Mat &dst, cv::Size ksize);
 [hobotcv_benchmark相关介绍](./benchmark/README.md)
 
 ## 运行
-- 编译成功后，将生成的install路径拷贝到地平线X3开发板上（如果是在X3上编译，忽略拷贝步骤），并执行如下命令运行。
+- 编译成功后，将生成的install路径拷贝到RDK X3开发板上（如果是在X3上编译，忽略拷贝步骤），并执行如下命令运行。
 
 ## X3 Ubuntu系统上运行
 

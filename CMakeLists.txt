@@ -30,17 +30,22 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 
 # find dependencies
-find_package(ament_cmake REQUIRED)
 # uncomment the following section in order to fill in
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
+find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 
-# x3|rdkultra|x86
-set(PREFIX_PATH x3)
+# 目前支持的平台：x3|rdkultra|x86|x5，默认选择x5，下面还会再次判断一下
+set(PREFIX_PATH x5)
 set(SYS_ROOT ${CMAKE_SYSROOT})
 
-if(PLATFORM_X3)
+# 根据colcon build -DPLATFORM_XX=ON判断选择哪个平台编译
+if(PLATFORM_X5)
+  message("build platform X5")
+  add_definitions(-DPLATFORM_X5)
+  set(PREFIX_PATH x5)
+elseif(PLATFORM_X3)
   message("build platform X3")
   add_definitions(-DPLATFORM_X3)
   set(PREFIX_PATH x3)
@@ -59,15 +64,14 @@ elseif(PLATFORM_Rdkultra)
   set(PREFIX_PATH rdkultra)
   set(SYS_ROOT ${THIRD_PARTY})
 else()
+  # 如果没有-DPLATFORM_XX=ON参数，则会判断系统的架构：`aarch64`则默认平台是X5，`x86_64`则默认平台是PC
   if (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "aarch64")
-    message("invalid platform, build platform X3 default")
-    add_definitions(-DPLATFORM_X3)
-    set(PLATFORM_X3 ON)
-    set(PREFIX_PATH x3)
+    message("build platform X5 default")
+    add_definitions(-DPLATFORM_X5)
+    set(PREFIX_PATH x5)
   elseif (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x86_64")
-    message("build platform X86")
+    message("build platform X86 default")
     add_definitions(-DPLATFORM_X86)
-    set(PLATFORM_X86 ON)
     set(PREFIX_PATH x86)
     set(SYS_ROOT ${THIRD_PARTY})
   endif()
@@ -75,8 +79,9 @@ endif()
 
 message("PREFIX_PATH is " ${PREFIX_PATH})
 message("SYS_ROOT is " ${SYS_ROOT})
-message("PROJECT_SOURCE_DIR" ${PROJECT_SOURCE_DIR})
+message("PROJECT_SOURCE_DIR " ${PROJECT_SOURCE_DIR})
 
+# 全局include目录
 include_directories(include
   include/${PREFIX_PATH}
   ${PROJECT_SOURCE_DIR}
@@ -85,6 +90,7 @@ include_directories(include
   thirdparty/include/
 )
 
+# 全局link目录
 link_directories(
   ${SYS_ROOT}/usr/lib/
   ${SYS_ROOT}/usr/lib/hbbpu/
@@ -94,11 +100,141 @@ link_directories(
 
 SET(LINK_LIBS dnn opencv_world)
 
-if(PLATFORM_X3)
+if (PLATFORM_X5)
+  # RDK X5 平台编译规则
+  message("compile to x5 platform")
+  SET(VPS_LIBS z   tinyalsa cjson dl)
+  SET(NEON_LIBS  Nano2D Nano2Dutil vpf)
 
+  # 编译libhobot_cv.so动态链接库
+  add_library(${PROJECT_NAME} SHARED
+    src/utils.cpp
+    src/x5/hobotcv_imgproc/hobotcv_imgproc.cpp
+    src/x5/hobotcv_imgproc/hobotcv_front.cpp
+    src/x5/hobotcv_gaussian_blur.cpp
+    src/x5/hobotcv_gaussian_blur_imp.cpp
+  )
+  target_link_libraries(${PROJECT_NAME} ${LINK_LIBS} ${VPS_LIBS} ${NEON_LIBS})
+
+  # 编译使用示例
+  # add_executable(hobotcv_benchmark benchmark/main.cpp benchmark/hobotcv_benchmark_node.cpp)
+  # target_link_libraries(hobotcv_benchmark
+    # ${LINK_LIBS}
+    # ${PROJECT_NAME}
+    # ${VPS_LIBS})
+
+  add_executable(resize_example_vps test/test_resize_vps.cpp)
+  target_link_libraries(resize_example_vps
+    ${LINK_LIBS}
+    ${PROJECT_NAME}
+    ${VPS_LIBS})
+
+  add_executable(crop_example_cpu test/test_crop_cpu.cpp)
+  target_link_libraries(crop_example_cpu
+    ${LINK_LIBS}
+    ${PROJECT_NAME}
+    ${VPS_LIBS})
+
+  add_executable(crop_example_vps test/test_crop_vps.cpp)
+  target_link_libraries(crop_example_vps
+    ${LINK_LIBS}
+    ${PROJECT_NAME}
+    ${VPS_LIBS})
+
+  add_executable(rotate_example_vps test/test_rotate_vps.cpp)
+  target_link_libraries(rotate_example_vps
+    ${LINK_LIBS}
+    ${PROJECT_NAME}
+    ${VPS_LIBS})
+
+  add_executable(imgproc_example_vps test/test_imgproc_vps.cpp)
+  target_link_libraries(imgproc_example_vps
+    ${LINK_LIBS}
+    ${PROJECT_NAME}
+    ${VPS_LIBS})
+  
+  add_executable(padding_example test/test_padding.cpp)
+  target_link_libraries(padding_example
+    ${LINK_LIBS}
+    ${PROJECT_NAME})
+
+  #add_executable(neon_example test/test_neon_blur.cpp)
+  #target_link_libraries(neon_example
+  #  ${LINK_LIBS}
+  #  ${PROJECT_NAME}
+  #  ${VPS_LIBS})
+
+  add_executable(test_gaussian_blur test/test_gaussian_blur.cpp)
+  target_link_libraries(test_gaussian_blur
+    ${LINK_LIBS}
+    ${PROJECT_NAME})
+
+  ament_target_dependencies(
+    ${PROJECT_NAME}
+    rclcpp
+  )
+
+  target_include_directories(${PROJECT_NAME} PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
+
+  target_link_directories(${PROJECT_NAME} PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/lib>
+  $<INSTALL_INTERFACE:lib>)
+
+  # Install libraries
+  install(TARGETS ${PROJECT_NAME}
+    DESTINATION lib/)
+
+  # Install include files
+  install(
+    FILES include/x5/hobotcv_imgproc/hobotcv_imgproc.h
+    FILES include/x5/hobotcv_gaussian_blur.h
+    FILES include/x5/hobotcv_gaussian_blur_imp.hpp
+    FILES thirdparty/include/hobotcv_neon_blur.h
+    DESTINATION include/${PROJECT_NAME}/
+  )
+
+  # Install library
+  install(FILES
+  ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/lib/libhobotcv_neon_blur.so
+  DESTINATION lib/)
+
+  # Install executables
+  install(
+    TARGETS padding_example test_gaussian_blur 
+            resize_example_vps crop_example_cpu crop_example_vps rotate_example_vps imgproc_example_vps
+    RUNTIME DESTINATION lib/${PROJECT_NAME}
+  )
+
+  # Install config
+  install(DIRECTORY
+    ${PROJECT_SOURCE_DIR}/config/
+    DESTINATION lib/${PROJECT_NAME}/config/
+  )
+
+  install(DIRECTORY
+  ${PROJECT_SOURCE_DIR}/launch/
+  DESTINATION share/${PROJECT_NAME}/launch)
+
+  # Causes the visibility macros to use dllexport rather than dllimport,
+  # which is appropriate when building the dll but not consuming it.
+  target_compile_definitions(${PROJECT_NAME}
+    PRIVATE "RCLCPP_BUILDING_LIBRARY")
+
+  install(
+    TARGETS ${PROJECT_NAME} EXPORT ${PROJECT_NAME}
+    ARCHIVE DESTINATION lib
+    LIBRARY DESTINATION lib
+    RUNTIME DESTINATION bin
+  )
+elseif(PLATFORM_X3)
+  # RDK X3 平台编译规则
+  message("compile to x3 platform")
   SET(VPS_LIBS isp_algo z hbmedia isp ion multimedia iar tinyalsa cjson diag gdcbin vio dl)
   SET(NEON_LIBS hobotcv_neon_blur)
 
+  # 编译libhobot_cv.so动态链接库
   add_library(${PROJECT_NAME} SHARED
     src/utils.cpp
     src/x3/hobotcv_imgproc/hobotcv_imgproc.cpp
@@ -109,6 +245,7 @@ if(PLATFORM_X3)
   )
   target_link_libraries(${PROJECT_NAME} ${LINK_LIBS} ${VPS_LIBS} ${NEON_LIBS})
 
+  # 编译使用示例
   add_executable(example test/test_crop_resize_rotate.cpp)
   target_link_libraries(example
     ${LINK_LIBS}
@@ -221,8 +358,79 @@ if(PLATFORM_X3)
     LIBRARY DESTINATION lib
     RUNTIME DESTINATION bin
   )
-elseif(PLATFORM_X86)
+elseif(PLATFORM_Rdkultra)
+  # RDK Ultra 平台编译规则
+  message("compile to Rdkultra platform")
+  # 编译libhobot_cv.so动态链接库
+  add_library(${PROJECT_NAME} SHARED
+    src/utils.cpp
+    src/rdkultra/hobotcv_imgproc/hobotcv_imgproc.cpp
+  )
+  target_link_libraries(${PROJECT_NAME} ${LINK_LIBS} ${VPS_LIBS} ${NEON_LIBS})
 
+  # 编译使用示例
+  add_executable(resize_example test/test_resize.cpp)
+  target_link_libraries(resize_example
+  ${LINK_LIBS}
+  ${PROJECT_NAME}
+  ${VPS_LIBS})
+
+  ament_target_dependencies(
+    ${PROJECT_NAME}
+    rclcpp
+  )
+
+  target_include_directories(${PROJECT_NAME} PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
+
+  target_link_directories(${PROJECT_NAME} PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/lib>
+  $<INSTALL_INTERFACE:lib>)
+  
+  # Install libraries
+  install(TARGETS ${PROJECT_NAME}
+  DESTINATION lib/)
+
+  install(FILES
+  ${SYS_ROOT}/usr/lib/libopencv_world.so.3.4
+  DESTINATION lib/)
+
+  install(
+    FILES include/rdkultra/hobotcv_imgproc/hobotcv_imgproc.h
+    DESTINATION include/${PROJECT_NAME}/
+  )
+
+  install(
+  TARGETS resize_example
+  RUNTIME DESTINATION lib/${PROJECT_NAME}
+  )
+
+  # Install config
+  install(DIRECTORY
+  ${PROJECT_SOURCE_DIR}/config/
+  DESTINATION lib/${PROJECT_NAME}/config/
+  )
+
+  install(DIRECTORY
+  ${PROJECT_SOURCE_DIR}/launch/
+  DESTINATION share/${PROJECT_NAME}/launch)
+
+  # Causes the visibility macros to use dllexport rather than dllimport,
+  # which is appropriate when building the dll but not consuming it.
+  target_compile_definitions(${PROJECT_NAME}
+  PRIVATE "RCLCPP_BUILDING_LIBRARY")
+
+  install(
+  TARGETS ${PROJECT_NAME} EXPORT ${PROJECT_NAME}
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin
+  )
+elseif(PLATFORM_X86)
+  # x86 平台编译规则
+  message("compile to X86 platform")
+  # 编译libhobot_cv.so动态链接库
   add_library(${PROJECT_NAME} SHARED
     src/utils.cpp
     src/x86/hobotcv_imgproc/hobotcv_imgproc.cpp
@@ -233,6 +441,7 @@ elseif(PLATFORM_X86)
   )
   target_link_libraries(${PROJECT_NAME} ${LINK_LIBS} ${VPS_LIBS} ${NEON_LIBS})
 
+  # 编译使用示例
   # add_executable(example test/test_crop_resize_rotate.cpp)
   # target_link_libraries(example
   # ${LINK_LIBS}
@@ -341,71 +550,6 @@ elseif(PLATFORM_X86)
   RUNTIME DESTINATION lib/${PROJECT_NAME}
   )
 
-
-  # Install config
-  install(DIRECTORY
-  ${PROJECT_SOURCE_DIR}/config/
-  DESTINATION lib/${PROJECT_NAME}/config/
-  )
-
-  install(DIRECTORY
-  ${PROJECT_SOURCE_DIR}/launch/
-  DESTINATION share/${PROJECT_NAME}/launch)
-
-  # Causes the visibility macros to use dllexport rather than dllimport,
-  # which is appropriate when building the dll but not consuming it.
-  target_compile_definitions(${PROJECT_NAME}
-  PRIVATE "RCLCPP_BUILDING_LIBRARY")
-
-  install(
-  TARGETS ${PROJECT_NAME} EXPORT ${PROJECT_NAME}
-  ARCHIVE DESTINATION lib
-  LIBRARY DESTINATION lib
-  RUNTIME DESTINATION bin
-  )
-elseif(PLATFORM_Rdkultra)
-  add_library(${PROJECT_NAME} SHARED
-    src/utils.cpp
-    src/rdkultra/hobotcv_imgproc/hobotcv_imgproc.cpp
-  )
-  target_link_libraries(${PROJECT_NAME} ${LINK_LIBS} ${VPS_LIBS} ${NEON_LIBS})
-
-  add_executable(resize_example test/test_resize.cpp)
-  target_link_libraries(resize_example
-  ${LINK_LIBS}
-  ${PROJECT_NAME}
-  ${VPS_LIBS})
-
-  ament_target_dependencies(
-    ${PROJECT_NAME}
-    rclcpp
-  )
-
-  target_include_directories(${PROJECT_NAME} PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:include>)
-
-  target_link_directories(${PROJECT_NAME} PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/lib>
-  $<INSTALL_INTERFACE:lib>)
-  
-  # Install libraries
-  install(TARGETS ${PROJECT_NAME}
-  DESTINATION lib/)
-
-  install(FILES
-  ${SYS_ROOT}/usr/lib/libopencv_world.so.3.4
-  DESTINATION lib/)
-
-  install(
-    FILES include/rdkultra/hobotcv_imgproc/hobotcv_imgproc.h
-    DESTINATION include/${PROJECT_NAME}/
-  )
-
-  install(
-  TARGETS resize_example
-  RUNTIME DESTINATION lib/${PROJECT_NAME}
-  )
 
   # Install config
   install(DIRECTORY

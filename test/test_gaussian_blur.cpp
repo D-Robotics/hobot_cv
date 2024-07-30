@@ -86,6 +86,7 @@ void analyse_result(cv::Mat &out_filter, cv::Mat &cls_filter,
 int main() {
   int32_t ret = -1;
 
+  std::cout << "======================= Init GaussianBlur =======================" << std::endl;
   HobotGaussianBlurParam blur_param;
   HOBOTCV_INITIALIZE_GAUSSIAN_BLUR_PARAM(&blur_param);
   HobotCVGaussianBlurHandle handle;
@@ -95,8 +96,9 @@ int main() {
     return -1;
   }
 
+  std::cout << "======================= Exec GaussianBlur =======================" << std::endl;
   for (int i = 0; i < 5; i++) {
-    std::string m_tof_file_s = "config/tof_images/frame1_" +
+    std::string m_tof_file_s = "./config/tof_images/frame1_" +
         std::to_string(i) + ".png";
 
     std::cout << "===================" << std::endl;
@@ -130,6 +132,7 @@ int main() {
     std::cout << "" << std::endl;
   }
 
+  std::cout << "======================= Destroy GaussianBlur ====================" << std::endl;
   ret = HobotCVGaussianBlurDestroy(handle);
   if (ret < 0) {
     printf("HobotCVGaussianBlurDestroy failed, error msg:%d\n", ret);

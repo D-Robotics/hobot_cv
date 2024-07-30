@@ -15,11 +15,12 @@
 from launch import LaunchDescription
 from launch_ros.actions import Node
 
+
 def generate_launch_description():
     return LaunchDescription([
         Node(
               package='hobot_cv',
-              executable='resize_example',
+              executable='imgproc_example_vps',
               output='screen',
               parameters=[],
               arguments=['--ros-args', '--log-level', 'info']

@@ -126,6 +126,7 @@ class hobotcv_front {
   hbn_vnode_handle_t vse_node_handle;
   hbn_vflow_handle_t vflow_fd;
   uint32_t chn_id = 0;
+  uint32_t ochn_id = 0;
   bool m_inited_ = false;
   bool start_ = 0;
 

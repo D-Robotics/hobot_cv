@@ -123,32 +123,26 @@ if (PLATFORM_X5)
     # ${PROJECT_NAME}
     # ${VPS_LIBS})
 
-  add_executable(resize_example_vps test/test_resize_vps.cpp)
-  target_link_libraries(resize_example_vps
+  add_executable(resize_example test/test_resize.cpp)
+  target_link_libraries(resize_example
     ${LINK_LIBS}
     ${PROJECT_NAME}
     ${VPS_LIBS})
 
-  add_executable(crop_example_cpu test/test_crop_cpu.cpp)
-  target_link_libraries(crop_example_cpu
+  add_executable(crop_example test/test_crop.cpp)
+  target_link_libraries(crop_example
     ${LINK_LIBS}
     ${PROJECT_NAME}
     ${VPS_LIBS})
 
-  add_executable(crop_example_vps test/test_crop_vps.cpp)
-  target_link_libraries(crop_example_vps
+  add_executable(rotate_example test/test_rotate.cpp)
+  target_link_libraries(rotate_example
     ${LINK_LIBS}
     ${PROJECT_NAME}
     ${VPS_LIBS})
 
-  add_executable(rotate_example_vps test/test_rotate_vps.cpp)
-  target_link_libraries(rotate_example_vps
-    ${LINK_LIBS}
-    ${PROJECT_NAME}
-    ${VPS_LIBS})
-
-  add_executable(imgproc_example_vps test/test_imgproc_vps.cpp)
-  target_link_libraries(imgproc_example_vps
+  add_executable(imgproc_example test/test_imgproc.cpp)
+  target_link_libraries(imgproc_example
     ${LINK_LIBS}
     ${PROJECT_NAME}
     ${VPS_LIBS})
@@ -203,7 +197,7 @@ if (PLATFORM_X5)
   # Install executables
   install(
     TARGETS padding_example test_gaussian_blur 
-            resize_example_vps crop_example_cpu crop_example_vps rotate_example_vps imgproc_example_vps
+            resize_example crop_example rotate_example imgproc_example
     RUNTIME DESTINATION lib/${PROJECT_NAME}
   )
 

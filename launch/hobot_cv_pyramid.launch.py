@@ -1,4 +1,4 @@
-# Copyright (c) 2024，D-Robotics.
+# Copyright (c) 2022，Horizon Robotics.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ def generate_launch_description():
     return LaunchDescription([
         Node(
               package='hobot_cv',
-              executable='crop_example_cpu',
+              executable='pyramid_example',
               output='screen',
               parameters=[],
               arguments=['--ros-args', '--log-level', 'info']

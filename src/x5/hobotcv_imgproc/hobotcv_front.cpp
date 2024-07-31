@@ -494,7 +494,7 @@ int hobotcv_front::processFrame(const char *src, int input_w, int input_h, char 
   }
 
 	hbn_vnode_image_t out_img;
-	ret = hbn_vnode_getframe(vse_node_handle, chn_id, 1000, &out_img);
+	ret = hbn_vnode_getframe(vse_node_handle, ochn_id, 1000, &out_img);
 	if (ret != 0) {
 		printf("hbn_vnode_getframe VSE channel  = %d,ret = %d failed\n", chn_id,ret);
     hb_mem_free_buf(img.buffer.fd[0]);
@@ -510,13 +510,13 @@ int hobotcv_front::processFrame(const char *src, int input_w, int input_h, char 
   //dst = cv::Mat(height * 3 / 2, width, CV_8UC1);
   if (dst_size < (out_img.buffer.size[0] + out_img.buffer.size[1])) {
     hb_mem_free_buf(img.buffer.fd[0]);
-    hbn_vnode_releaseframe(vse_node_handle, chn_id, &out_img);
+    hbn_vnode_releaseframe(vse_node_handle, ochn_id, &out_img);
     return -1;
   }
 	memcpy(dst, out_img.buffer.virt_addr[0], out_img.buffer.size[0]);
   memcpy(dst + out_img.buffer.size[0], out_img.buffer.virt_addr[1], out_img.buffer.size[1]);
   hb_mem_free_buf(img.buffer.fd[0]);
-	hbn_vnode_releaseframe(vse_node_handle, chn_id, &out_img);
+	hbn_vnode_releaseframe(vse_node_handle, ochn_id, &out_img);
 	return 0;
 }
 
@@ -597,6 +597,12 @@ int hobotcv_front::set_vse_attr() {
     vse_attr_t vse_attr = {0};
     vse_ichn_attr_t vse_ichn_attr;
     vse_ochn_attr_t vse_ochn_attr;
+    if ((dst_w > roi_w) || (dst_h > roi_h)) {
+      ochn_id = 5;
+    } else {
+      ochn_id = 0;
+    }
+
     ret = hbn_vnode_set_attr(vse_node_handle, &vse_attr);
     ERR_CON_EQ(ret, 0);
 
@@ -621,7 +627,7 @@ int hobotcv_front::set_vse_attr() {
     vse_ochn_attr.target_w = dst_w;
     vse_ochn_attr.target_h = dst_h;
 
-    ret = hbn_vnode_set_ochn_attr(vse_node_handle, 0, &vse_ochn_attr);
+    ret = hbn_vnode_set_ochn_attr(vse_node_handle, ochn_id, &vse_ochn_attr);
     ERR_CON_EQ(ret, 0);
     alloc_attr.buffers_num = 3;
     alloc_attr.is_contig = 1;
@@ -629,7 +635,7 @@ int hobotcv_front::set_vse_attr() {
               | HB_MEM_USAGE_CPU_WRITE_OFTEN
               | HB_MEM_USAGE_CACHED
               | HB_MEM_USAGE_GRAPHIC_CONTIGUOUS_BUF;
-    ret = hbn_vnode_set_ochn_buf_attr(vse_node_handle, 0, &alloc_attr);
+    ret = hbn_vnode_set_ochn_buf_attr(vse_node_handle, ochn_id, &alloc_attr);
     ERR_CON_EQ(ret, 0);
     return 0;
   } else {

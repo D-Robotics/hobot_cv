@@ -56,16 +56,14 @@ int hobotcv_resize(const cv::Mat &src,
     msStart = (ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
   }
 
-  hobotcv_front& hobotcv = hobotcv_front::getInstance();
-
-  ret = hobotcv.prepareParam(src_w, src_h, dst_w, dst_h, cv::Range(0, 0), cv::Range(0, 0));
-  if (ret != 0) {
+  auto front_ptr = hobotcv_front_group::getInstance().getHobotcvFront(src_w, src_h, dst_w, dst_h, cv::Range(0, 0), cv::Range(0, 0));
+  if (front_ptr == nullptr) {
     return -1;
   }
   
   dst = cv::Mat(dst_h * 3 / 2, dst_w, CV_8UC1);
   int dst_size = dst_w * dst_h * 1.5;
-  ret = hobotcv.processFrame((const char*)src.data, src_w, src_h, (char*)dst.data, dst_size);
+  ret = front_ptr->processFrame((const char*)src.data, src_w, src_h, (char*)dst.data, dst_size);
   if (ret != 0) {
     return -1;
   }
@@ -194,16 +192,14 @@ cv::Mat hobotcv_crop(const cv::Mat &src,
     msStart = (ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
   }
 
-  hobotcv_front& hobotcv = hobotcv_front::getInstance();
-
-  ret = hobotcv.prepareParam(src_w, src_h, dst_w, dst_h, rowRange, colRange);
-  if (ret != 0) {
+  auto front_ptr = hobotcv_front_group::getInstance().getHobotcvFront(src_w, src_h, dst_w, dst_h, rowRange, colRange);
+  if (front_ptr == nullptr) {
     return dst_null;
   }
   
   cv::Mat dst(dst_h * 3 / 2, dst_w, CV_8UC1);
   int dst_size = dst_w * dst_h * 1.5;
-  ret = hobotcv.processFrame((const char*)src.data, src_w, src_h, (char*)dst.data, dst_size);
+  ret = front_ptr->processFrame((const char*)src.data, src_w, src_h, (char*)dst.data, dst_size);
   if (ret != 0) {
     return dst_null;
   }
@@ -391,10 +387,8 @@ std::shared_ptr<ImageInfo> hobotcv_resize(const char *src,
     msStart = (ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
   }
 
-  hobotcv_front& hobotcv = hobotcv_front::getInstance();
-
-  ret = hobotcv.prepareParam(src_w, src_h, dst_w, dst_h, cv::Range(0, 0), cv::Range(0, 0));
-  if (ret != 0) {
+  auto front_ptr = hobotcv_front_group::getInstance().getHobotcvFront(src_w, src_h, dst_w, dst_h, cv::Range(0, 0), cv::Range(0, 0));
+  if (front_ptr == nullptr) {
     return nullptr;
   }
   
@@ -402,7 +396,7 @@ std::shared_ptr<ImageInfo> hobotcv_resize(const char *src,
 
   int dst_size = dst_w * dst_h * 1.5;
   char* dst = (char *)malloc(dst_size);
-  ret = hobotcv.processFrame(src, src_w, src_h, dst, dst_size);
+  ret = front_ptr->processFrame(src, src_w, src_h, dst, dst_size);
   if (ret != 0) {
     return nullptr;
   }
@@ -533,18 +527,14 @@ std::shared_ptr<ImageInfo> hobotcv_crop(const char *src,
     msStart = (ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
   }
 
-  hobotcv_front& hobotcv = hobotcv_front::getInstance();
-
-  ret = hobotcv.prepareParam(src_w, src_h, dst_w, dst_h, rowRange, colRange);
-  if (ret != 0) {
+  auto front_ptr = hobotcv_front_group::getInstance().getHobotcvFront(src_w, src_h, dst_w, dst_h, rowRange, colRange);
+  if (front_ptr == nullptr) {
     return nullptr;
   }
-  
-  //dst = cv::Mat(dst_h * 3 / 2, dst_w, CV_8UC1);
 
   int dst_size = dst_w * dst_h * 1.5;
   char* dst = (char *)malloc(dst_size);
-  ret = hobotcv.processFrame(src, src_w, src_h, dst, dst_size);
+  ret = front_ptr->processFrame(src, src_w, src_h, dst, dst_size);
   if (ret != 0) {
     return nullptr;
   }

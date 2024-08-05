@@ -27,6 +27,11 @@
 #include <functional>
 #include <signal.h>
 
+#include <chrono>
+#include <functional>
+#include <thread>
+#include <atomic>
+
 #include "opencv2/core/mat.hpp"
 #include "opencv2/imgcodecs.hpp"
 #include "opencv2/imgproc.hpp"
@@ -75,17 +80,54 @@ std::unique_ptr<char[]> hobotcv_reflect_padding(const char *src,
                                                 uint32_t left,
                                                 uint32_t right);
 
+
+class Timer {
+ public:
+    Timer() : running(false) {}
+
+    // 设置定时器
+    void setTimer(std::chrono::milliseconds duration, std::function<void()> func) {
+        callback_func_ = func;
+        duration_ = duration;
+    }
+
+    // 启动定时器
+    void start() {
+        if (!running.exchange(true)) {
+            thread_ = std::thread([this]() {
+              while (this->running.load()) {
+                std::this_thread::sleep_for(this->duration_);
+                this->callback_func_();
+              }
+            });
+        }
+    }
+
+    // 取消定时器
+    void cancel() {
+        if (running.exchange(false)) {
+            if (thread_.joinable()) {
+                thread_.detach(); // 如果线程在sleep中，这可能导致不确定的行为
+            }
+        }
+    }
+
+    ~Timer() {
+        cancel();
+    }
+
+ private:
+    std::atomic<bool> running;
+    std::chrono::milliseconds duration_;
+    std::thread thread_;
+    std::function<void()> callback_func_;
+};
+
 class hobotcv_front {
  public:
-  // 获取单体实例的静态方法
-  static hobotcv_front& getInstance() {
-      static hobotcv_front instance;  // 静态局部变量，只初始化一次
-      return instance;
-  }
-  // 禁止复制构造函数和赋值操作符
-  hobotcv_front(const hobotcv_front&) = delete;
-  hobotcv_front& operator=(const hobotcv_front&) = delete;
 
+  hobotcv_front() {run_time = std::chrono::system_clock::now();};
+  ~hobotcv_front() {destroy_vse_node();}
 
   int prepareParam(int src_height,
                      int src_width,
@@ -97,11 +139,10 @@ class hobotcv_front {
 
   int processFrame(const char *src, int input_w, int input_h, char *dst, int dst_size);
 
- private:
-  explicit hobotcv_front() {}
-  // 防止外部删除
-  ~hobotcv_front() {}
+  std::chrono::system_clock::time_point run_time;
 
+ private:
+  
   int creat_vse_node();
   int start_vse_node();
   int stop_vse_node();
@@ -119,7 +160,6 @@ class hobotcv_front {
   int roi_w;
   int roi_h;
 
-
  private:
   int processId = 0;
   int ds_layer_en = 0;
@@ -129,6 +169,45 @@ class hobotcv_front {
   uint32_t ochn_id = 0;
   bool m_inited_ = false;
   bool start_ = 0;
+
+};
+
+class hobotcv_front_group {
+ public:
+  // 获取单体实例的静态方法
+  static hobotcv_front_group& getInstance() {
+      static hobotcv_front_group instance;  // 静态局部变量，只初始化一次
+      return instance;
+  }
+  // 禁止复制构造函数和赋值操作符
+  hobotcv_front_group(const hobotcv_front_group&) = delete;
+  hobotcv_front_group& operator=(const hobotcv_front_group&) = delete;
+
+
+  std::shared_ptr<hobotcv_front> getHobotcvFront(int src_height,
+                     int src_width,
+                     int dst_width,
+                     int dst_height,
+                     cv::Range rowRange,
+                     cv::Range colRange,
+                     bool printLog = true);
+
+  void process_front_timeout();
+
+ private:
+  explicit hobotcv_front_group() {
+    timer_.setTimer(std::chrono::milliseconds(1000),
+              std::bind(&hobotcv_front_group::process_front_timeout,this));
+    timer_.start();
+  }
+  // 防止外部删除
+  ~hobotcv_front_group() {timer_.cancel();}
+
+
+ private:
+  std::vector<std::shared_ptr<hobotcv_front>> hobotcv_group;
+  Timer timer_;
+  std::mutex v_mtx_;
 
 };
 

@@ -462,6 +462,7 @@ int hobotcv_front::processFrame(const char *src, int input_w, int input_h, char 
   int64_t alloc_flags = 0;
   int ret;
   memset(&img, 0, sizeof(hbn_vnode_image_t));
+  run_time = std::chrono::system_clock::now();
 
 
   alloc_flags = HB_MEM_USAGE_MAP_INITIALIZED |
@@ -641,6 +642,103 @@ int hobotcv_front::set_vse_attr() {
   } else {
     return -1;
   }
+}
+
+std::shared_ptr<hobotcv_front>  hobotcv_front_group::getHobotcvFront(int src_width,
+                                      int src_height,
+                                      int dst_width,
+                                      int dst_height,
+                                      cv::Range rowRange,
+                                      cv::Range colRange,
+                                      bool printLog) {
+  int ret;
+  if (dst_width % 16 != 0) {
+    int remain = dst_width % 16;
+    int recommend_dst_width = dst_width + 16 - remain;
+    if (printLog) {
+      /*当加速方式为AUTO时，先验证vps条件，此时printLog为false。
+      若不适用vps加速，不输出error log，直接采用bpu加速方式。*/
+      RCLCPP_ERROR(rclcpp::get_logger("hobot_cv resize"),
+                   "unsupported dst width %d! The dst width must "
+                   "be a multiple of 16! The recommended dst width is %d ",
+                   dst_width,
+                   recommend_dst_width);
+    }
+    return nullptr;
+  }
+  if (dst_height % 2 != 0) {
+    if (printLog) {
+      RCLCPP_ERROR(rclcpp::get_logger("hobot_cv resize"),
+                   "unsupported dst height %d! The dst height must be even!",
+                   dst_height);
+    }
+    return nullptr;
+  }
+  if (dst_height > 2160 || dst_width > 4096 || dst_height < 32 ||
+      dst_width < 32) {
+    if (printLog) {
+      RCLCPP_ERROR(
+          rclcpp::get_logger("hobot_cv resize"),
+          "unsupported dst resolution %d x %d! The supported dst resolution "
+          "is 32 x 32 to 4096 x 2160!",
+          dst_width,
+          dst_height);
+    }
+    return nullptr;
+  }
+  if ((rowRange.start == 0) && (rowRange.end == 0) && (colRange.start == 0) && (colRange.end == 0)) {
+    rowRange.end = src_height;
+    colRange.end = src_width;
+  }
+  if (colRange.end - colRange.start <= 0 || rowRange.end - rowRange.start <= 0 ||
+      rowRange.start < 0 || colRange.start < 0 || rowRange.end > src_height ||
+        colRange.end > src_width) {
+    if (printLog) {
+      RCLCPP_ERROR(
+            rclcpp::get_logger("hobot_cv crop"),
+            "Invalid Range data, rowRange.start:%d rowRange.end:%d "
+            "colRange.start: %d colRange.end: %d"
+            "rowRange should be in [0, %d) and colRange should be in [0, %d)",
+            rowRange.start,
+            rowRange.end,
+            colRange.start,
+            colRange.end,
+            src_height,
+            src_width);
+    }
+    return nullptr;
+  }
+  {
+    std::unique_lock<std::mutex> lk(v_mtx_);
+    for (auto itm : hobotcv_group) {
+      if ((itm->src_h == src_height) && (itm->src_w == src_width) && (itm->dst_h == dst_height) &&
+        (itm->dst_w == dst_width) && (itm->roi_x == colRange.start) && (itm->roi_y == rowRange.start) &&
+        (itm->roi_w == (colRange.end - colRange.start)) && (itm->roi_h == (rowRange.end - rowRange.start))) {
+          return itm;
+      }
+    }
+  }
+
+  auto front = std::make_shared<hobotcv_front>();
+  ret = front->prepareParam(src_width, src_height, dst_width, dst_height, rowRange, colRange, printLog);
+  if (ret != 0) {
+    return nullptr;
+  }
+  std::unique_lock<std::mutex> lk(v_mtx_);
+  hobotcv_group.push_back(front);
+  return front;
+}
+
+void hobotcv_front_group::process_front_timeout() {
+  std::unique_lock<std::mutex> lk(v_mtx_);
+  hobotcv_group.erase(std::remove_if(hobotcv_group.begin(), hobotcv_group.end(), [](std::shared_ptr<hobotcv_front> front) {
+      auto now = std::chrono::system_clock::now();
+      auto interval = std::chrono::duration_cast<std::chrono::milliseconds>(
+                          now - front->run_time).count();
+      return interval > 2 * 1000;
+    }), hobotcv_group.end());
+  timer_.setTimer(std::chrono::milliseconds(1000),
+              std::bind(&hobotcv_front_group::process_front_timeout,this));
 }
 
 }  // namespace hobot_cv

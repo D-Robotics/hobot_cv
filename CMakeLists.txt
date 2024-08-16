@@ -103,7 +103,7 @@ SET(LINK_LIBS dnn opencv_world)
 if (PLATFORM_X5)
   # RDK X5 平台编译规则
   message("compile to x5 platform")
-  SET(VPS_LIBS z   tinyalsa cjson dl)
+  SET(VPS_LIBS cjson dl)
   SET(NEON_LIBS  Nano2D Nano2Dutil vpf)
 
   # 编译libhobot_cv.so动态链接库

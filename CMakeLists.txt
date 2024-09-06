@@ -86,6 +86,7 @@ include_directories(include
   include/${PREFIX_PATH}
   ${PROJECT_SOURCE_DIR}
   ${SYS_ROOT}/usr/include/
+  ${SYS_ROOT}/usr/hobot/include/
   ${SYS_ROOT}/usr/include/opencv/
   thirdparty/include/
 )
@@ -93,6 +94,7 @@ include_directories(include
 # 全局link目录
 link_directories(
   ${SYS_ROOT}/usr/lib/
+  ${SYS_ROOT}/usr/hobot/lib/
   ${SYS_ROOT}/usr/lib/hbbpu/
   ${SYS_ROOT}/usr/lib/hbmedia/
   thirdparty/lib/

@@ -106,7 +106,7 @@ if (PLATFORM_X5)
   # RDK X5 平台编译规则
   message("compile to x5 platform")
   SET(VPS_LIBS cjson dl)
-  SET(NEON_LIBS  Nano2D Nano2Dutil vpf)
+  SET(NEON_LIBS  Nano2D Nano2Dutil vpf hobotcv_neon_blur)
 
   # 编译libhobot_cv.so动态链接库
   add_library(${PROJECT_NAME} SHARED
@@ -154,11 +154,11 @@ if (PLATFORM_X5)
     ${LINK_LIBS}
     ${PROJECT_NAME})
 
-  #add_executable(neon_example test/test_neon_blur.cpp)
-  #target_link_libraries(neon_example
-  #  ${LINK_LIBS}
-  #  ${PROJECT_NAME}
-  #  ${VPS_LIBS})
+  add_executable(neon_example test/test_neon_blur.cpp)
+  target_link_libraries(neon_example
+    ${LINK_LIBS}
+    ${PROJECT_NAME}
+    ${VPS_LIBS})
 
   add_executable(test_gaussian_blur test/test_gaussian_blur.cpp)
   target_link_libraries(test_gaussian_blur
@@ -199,7 +199,7 @@ if (PLATFORM_X5)
   # Install executables
   install(
     TARGETS padding_example test_gaussian_blur 
-            resize_example crop_example rotate_example imgproc_example
+            resize_example crop_example rotate_example imgproc_example neon_example
     RUNTIME DESTINATION lib/${PROJECT_NAME}
   )
 

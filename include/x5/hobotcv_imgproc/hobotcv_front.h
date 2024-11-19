@@ -32,9 +32,7 @@
 #include <thread>
 #include <atomic>
 
-#include "opencv2/core/mat.hpp"
-#include "opencv2/imgcodecs.hpp"
-#include "opencv2/imgproc.hpp"
+#include "opencv2/opencv.hpp"
 #include "hbn_api.h"
 #include "vse_cfg.h"
 

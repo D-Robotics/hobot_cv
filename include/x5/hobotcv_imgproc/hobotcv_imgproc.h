@@ -18,8 +18,7 @@
 #include <memory>
 #include <vector>
 
-#include "opencv2/core/mat.hpp"
-#include "opencv2/core/types.hpp"
+#include "opencv2/opencv.hpp"
 #include "hbn_api.h"
 #include "vse_cfg.h"
 
@@ -38,6 +37,7 @@ typedef struct HOBOT_CV_IMAGE_INFO {
   int height;
   void *imageAddr;
 } ImageInfo;
+
 
 typedef std::unique_ptr<char[]> HobotcvImagePtr;
 
@@ -156,7 +156,6 @@ HobotcvImagePtr hobotcv_BorderPadding(const char *src,
  * @param[in] src_w: 原图宽
  * @param[in] dst_h: resize后图片高
  * @param[in] dst_w: resize后图片宽
- * @param[in] type：加速方式，默认采用vps加速
  * @return 成功返回resize后的图片数据指针，失败返回nullptr
  */
 std::shared_ptr<ImageInfo> hobotcv_resize(
@@ -222,5 +221,4 @@ std::shared_ptr<ImageInfo> hobotcv_imgproc(const char *src,
 
 
 }  // namespace hobot_cv
-
 #endif  // HOBOT_CV_INCLUDE_HOBOTCV_IMGPROC_HPP_

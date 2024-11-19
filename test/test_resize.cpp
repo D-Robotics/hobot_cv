@@ -17,10 +17,8 @@
 #include <iostream>
 #include <string>
 
-#include "opencv2/core/mat.hpp"
-#include "opencv2/core/types.hpp"
-#include "opencv2/imgcodecs.hpp"
 #include "opencv2/opencv.hpp"
+#include "opencv2/imgcodecs.hpp"
 #include "rclcpp/rclcpp.hpp"
 
 #include "hobotcv_imgproc/hobotcv_imgproc.h"

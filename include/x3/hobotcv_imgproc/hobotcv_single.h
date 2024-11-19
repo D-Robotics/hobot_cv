@@ -33,9 +33,7 @@
 #include <string>
 
 #include "dnn/hb_dnn.h"
-#include "opencv2/core/mat.hpp"
-#include "opencv2/imgcodecs.hpp"
-#include "opencv2/imgproc.hpp"
+#include "opencv2/opencv.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "utils.h"
 #include "vio/hb_vio_interface.h"

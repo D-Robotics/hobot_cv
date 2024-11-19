@@ -15,7 +15,7 @@
 #ifndef HOBOTCV_GAUSSIAN_BLUR_HPP_
 #define HOBOTCV_GAUSSIAN_BLUR_HPP_
 
-#include "opencv2/core/mat.hpp"
+#include "opencv2/opencv.hpp"
 
 #ifdef __cplusplus
 extern "C" {

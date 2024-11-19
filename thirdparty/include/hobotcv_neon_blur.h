@@ -1,4 +1,4 @@
-// Copyright (c) 2024，D-Robotics.
+// Copyright (c) 2022，Horizon Robotics.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,8 +14,7 @@
 #ifndef HOBOTCV_NEON_BLUR_HPP_
 #define HOBOTCV_NEON_BLUR_HPP_
 
-#include "opencv2/core/mat.hpp"
-#include "opencv2/core/types.hpp"
+#include "opencv2/opencv.hpp"
 
 namespace hobot_cv {
 

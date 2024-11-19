@@ -19,10 +19,8 @@
 
 #include "hobotcv_neon_blur.h"
 #include "include/utils.h"
-#include "opencv2/core/mat.hpp"
-#include "opencv2/core/types.hpp"
-#include "opencv2/imgcodecs.hpp"
 #include "opencv2/opencv.hpp"
+#include "opencv2/imgcodecs.hpp"
 #include "rclcpp/rclcpp.hpp"
 
 void analyse_result(cv::Mat &out_filter,

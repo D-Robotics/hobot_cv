@@ -24,9 +24,8 @@
 #include <utility>
 
 #include "hobotcv_gaussian_blur.h"
-#include "opencv2/core/mat.hpp"
+#include "opencv2/opencv.hpp"
 #include "opencv2/imgcodecs.hpp"
-#include "opencv2/imgproc.hpp"
 
 void analyse_result(cv::Mat &out_filter, cv::Mat &cls_filter,
                     std::string flag_name) {

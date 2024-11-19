@@ -19,9 +19,7 @@
 #include <string>
 
 #include "dnn/hb_dnn.h"
-#include "opencv2/core/mat.hpp"
-#include "opencv2/imgcodecs.hpp"
-#include "opencv2/imgproc.hpp"
+#include "opencv2/opencv.hpp"
 
 #define ALIGNED_2E(w, alignment) \
   ((static_cast<uint32_t>(w) + (alignment - 1U)) & (~(alignment - 1U)))

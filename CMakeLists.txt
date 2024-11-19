@@ -35,6 +35,12 @@ endif()
 # find_package(<dependency> REQUIRED)
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+#find_package(OpenCV REQUIRED)
+
+find_package(OpenCV)
+   if(NOT OpenCV_FOUND)
+      message(FATAL_ERROR "OpenCV > 4.4 not found.")
+   endif()
 
 # 目前支持的平台：x3|rdkultra|x86|x5，默认选择x5，下面还会再次判断一下
 set(PREFIX_PATH x5)
@@ -80,6 +86,7 @@ endif()
 message("PREFIX_PATH is " ${PREFIX_PATH})
 message("SYS_ROOT is " ${SYS_ROOT})
 message("PROJECT_SOURCE_DIR " ${PROJECT_SOURCE_DIR})
+message("OpenCV_LIBS: ${OpenCV_LIBS}")
 
 # 全局include目录
 include_directories(include
@@ -97,10 +104,11 @@ link_directories(
   ${SYS_ROOT}/usr/hobot/lib/
   ${SYS_ROOT}/usr/lib/hbbpu/
   ${SYS_ROOT}/usr/lib/hbmedia/
+  ${SYS_ROOT}/usr/lib/aarch64-linux-gnu/
   thirdparty/lib/
 )
 
-SET(LINK_LIBS dnn opencv_world)
+SET(LINK_LIBS dnn  ${OpenCV_LIBS})
 
 if (PLATFORM_X5)
   # RDK X5 平台编译规则
@@ -116,7 +124,7 @@ if (PLATFORM_X5)
     src/x5/hobotcv_gaussian_blur.cpp
     src/x5/hobotcv_gaussian_blur_imp.cpp
   )
-  target_link_libraries(${PROJECT_NAME} ${LINK_LIBS} ${VPS_LIBS} ${NEON_LIBS})
+  target_link_libraries(${PROJECT_NAME} ${LINK_LIBS} ${VPS_LIBS} ${NEON_LIBS} )
 
   # 编译使用示例
   # add_executable(hobotcv_benchmark benchmark/main.cpp benchmark/hobotcv_benchmark_node.cpp)
@@ -388,9 +396,9 @@ elseif(PLATFORM_Rdkultra)
   install(TARGETS ${PROJECT_NAME}
   DESTINATION lib/)
 
-  install(FILES
-  ${SYS_ROOT}/usr/lib/libopencv_world.so.3.4
-  DESTINATION lib/)
+  #install(FILES
+  #${SYS_ROOT}/usr/lib/libopencv_world.so.3.4
+  #DESTINATION lib/)
 
   install(
     FILES include/rdkultra/hobotcv_imgproc/hobotcv_imgproc.h
@@ -509,9 +517,9 @@ elseif(PLATFORM_X86)
   install(TARGETS ${PROJECT_NAME}
   DESTINATION lib/)
 
-  install(FILES
-  ${SYS_ROOT}/usr/lib/libopencv_world.so.3.4
-  DESTINATION lib/)
+  #install(FILES
+  #${SYS_ROOT}/usr/lib/libopencv_world.so.3.4
+  #DESTINATION lib/)
 
   # Install include files
   # install(

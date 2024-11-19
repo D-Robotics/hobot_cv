@@ -18,8 +18,7 @@
 #include <memory>
 #include <vector>
 
-#include "opencv2/core/mat.hpp"
-#include "opencv2/core/types.hpp"
+#include "opencv2/opencv.hpp"
 
 namespace hobot_cv {
 

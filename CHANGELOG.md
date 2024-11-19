@@ -1,5 +1,9 @@
 # Changelog for package hobot_cv
 
+tros_2.3.0 (2024-11-19)
+------------------
+1. opencv升级到4.5.4版本与ros2的humble版本同步。
+
 tros_2.2.0 (2024-08-21)
 ------------------
 1. 适配RDK X5平台，使用VSE硬件加速图像resize功能，不再支持使用BPU加速图像resize功能。

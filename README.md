@@ -409,6 +409,35 @@ Parameters:
 | dst | Output data matrix after mean filter processing |
 | ksize | Size of mean filter template, currently supports 3x3 and 5x5 sizes |
 
+### color(neon)
+
+int hobotcv_color(const cv::Mat &src, cv::Mat &dst, , COLOR_E color);
+
+Function Introduction:Perform image format conversion on the input image. Use NEON acceleration.
+
+Return Value: 0 indicates success, -1 indicates parameter error.
+
+Parameters:
+| Parameter Name | Explanation |
+| -------------- | ----------- |
+| src | Input original data matrix, currently only supports CV_16SC1 and CV_16UC1 data types |
+| dst | Output data matrix after mean filter processing |
+| color | Enumeration of format conversion, refer to hobot_cv::COLOR_E |
+
+
+std::shared_ptr<ImageInfo> hobotcv_color(const char *src,int src_h,int src_w, COLOR_E color);
+
+Return Value: Returns the address of the rotated image data if successful, returns nullptr if failed.
+
+Parameters:
+| Parameter Name | Explanation |
+| -------------- | ----------- |
+| src          | Address of the input image data |
+| src_h        | Height of the input image |
+| src_w        | Width of the input image |
+| color | Enumeration of format conversion, refer to hobot_cv::COLOR_E |
+
+
 ## hobotcv_benchmark
 [Introduction to hobotcv_benchmark](./benchmark/README.md)
 

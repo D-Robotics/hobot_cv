@@ -411,6 +411,35 @@ int HobotMeanBlur(const cv::Mat &src, cv::Mat &dst, cv::Size ksize);
 | dst | 均值滤波处理后输出数据矩阵 |
 | ksize | 均值滤波器模板大小，目前只支持3x3和5x5大小 |
 
+### color(neon)
+
+int hobotcv_color(const cv::Mat &src, cv::Mat &dst, , COLOR_E color);
+
+功能介绍：将传入的图片进行图像格式的转换。采用neon加速。
+
+返回值：成功返回0，失败返回非零。
+
+参数：
+| 参数名   | 解释                 |
+| -------- | -------------------- |
+| src      | 原nv12格式的图像矩阵 |
+| dst      | 旋转后的图像矩阵   |
+| color   | 格式转换的枚举  |
+
+std::shared_ptr<ImageInfo> hobotcv_color(const char *src,int src_h,int src_w, COLOR_E color);
+
+功能介绍：将传入的图片进行图像格式的转换。采用neon加速。
+
+返回值：成功返回旋转后的图片数据地址，失败返回nullptr
+
+参数：
+| 参数名   | 解释                 |
+| -------- | --------------------|
+| src      | 输入图片数据地址      |
+| src_h    | 输入图片高           |
+| src_w     | 输入图片宽           |
+| color   | 格式转换的枚举             |
+
 ## hobotcv_benchmark
 [hobotcv_benchmark相关介绍](./benchmark/README.md)
 
@@ -611,6 +640,24 @@ pyramid缩小效果展示,每层为上一层的1/2：
 | 图片处理             | 第一次运行耗时 | 第二次运行耗时 | 第三次运行耗时 |
 | --------------------| ------------- | ------------- |------------- |
 | 1920x1080 旋转180度  | 163ms           | 38ms          | 38ms          |
+
+### color
+启动命令：ros2 launch hobot_cv hobot_cv_conersion.launch.py
+输出结果：
+```
+[INFO] [launch]: All log files can be found below /root/.ros/log/2025-02-13-14-13-02-138553-ubuntu-8359
+[INFO] [launch]: Default logging verbosity is set to INFO
+[INFO] [test_conersion-1]: process started with pid [8361]
+[test_conersion-1] [INFO] [1739427182.792986794] [hobot_cv]: bgr24_to_nv12 opencv time cost: 23 ms
+[test_conersion-1] [INFO] [1739427182.804039650] [hobot_cv]: nv12_to_bgr24 neon 1 time cost: 10 ms
+[test_conersion-1] [INFO] [1739427183.009571948] [hobot_cv]: nv12_to_bgr24 neon 2 time cost: 13 ms
+[test_conersion-1] [INFO] [1739427183.259710755] [hobot_cv]: bgr24_to_nv12 neon 1 time cost: 14 ms
+[test_conersion-1] [INFO] [1739427183.291304779] [hobot_cv]: nv12_to_bgr24 opencv time cost: 31 ms
+[test_conersion-1] [INFO] [1739427183.548960268] [hobot_cv]: bgr24_to_nv12 neon 2 time cost: 16 ms
+[test_conersion-1] [INFO] [1739427183.576743950] [hobot_cv]: nv12_to_bgr24 opencv time cost: 27 ms
+[INFO] [test_conersion-1]: process has finished cleanly [pid 8361]
+```
+从log对比显示，neon实现的方法比opencv的实现方法更高效。
 
 ### padding
 example启动命令：ros2 launch hobot_cv hobot_cv_padding.launch.py

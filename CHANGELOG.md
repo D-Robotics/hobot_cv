@@ -1,4 +1,7 @@
 # Changelog for package hobot_cv
+tros_2.3.1 (2025-02-12)
+------------------
+1. RDK x5平台增加conersion的接口。
 
 tros_2.3.0 (2024-11-19)
 ------------------

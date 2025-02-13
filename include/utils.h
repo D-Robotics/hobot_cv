@@ -20,6 +20,7 @@
 
 #include "dnn/hb_dnn.h"
 #include "opencv2/opencv.hpp"
+#include "rclcpp/rclcpp.hpp"
 
 #define ALIGNED_2E(w, alignment) \
   ((static_cast<uint32_t>(w) + (alignment - 1U)) & (~(alignment - 1U)))
@@ -42,5 +43,25 @@ void prepare_nv12_tensor_without_padding(int image_height,
 int32_t BGRToNv12(cv::Mat &bgr_mat, cv::Mat &img_nv12);
 
 uint64_t currentMicroseconds();
+
+namespace hobot_cv {
+  class calculate_time {
+   public:
+    calculate_time(std::string name):name_(name) {
+      start_ = std::chrono::system_clock::now();
+    }
+    ~calculate_time() {
+      auto end = std::chrono::system_clock::now();
+      auto interval = std::chrono::duration_cast<std::chrono::milliseconds>(end - start_).count();
+      std::stringstream ss;
+      ss << name_ << " time cost: " << interval << " ms";
+      RCLCPP_INFO(rclcpp::get_logger("hobot_cv"), "%s", ss.str().c_str());
+    }
+   private:
+    std::string name_;
+    std::chrono::system_clock::time_point start_;
+  };
+
+}// namespace hobot_cv
 
 #endif  // UTILS_H

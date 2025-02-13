@@ -38,6 +38,12 @@ typedef struct HOBOT_CV_IMAGE_INFO {
   void *imageAddr;
 } ImageInfo;
 
+typedef enum {
+  DCOLOR_YUV2BGR_NV12 = 1,
+  DCOLOR_BGR2YUV_NV12 = 2,
+  DCOLOR_MAX
+} COLOR_E;
+
 
 typedef std::unique_ptr<char[]> HobotcvImagePtr;
 
@@ -132,6 +138,15 @@ int hobotcv_imgproc(const cv::Mat &src,
 
 
 /**
+ * hobotcv加速图片bgr24和nv conversion处理
+ * @param[in] src: 需要进行conversion的原图
+ * @param[in] color: 图像conversion的类型,参考hobot_cv::COLOR_E的定义
+ * @param[out] dst：conversion后输出的图像
+ * @return 成功返回0，失败返回非0
+ */
+int hobotcv_color(const cv::Mat &src, cv::Mat &dst, COLOR_E color);
+
+/**
  * hobotcv边界填充处理
  * @param[in] src: 需要填充边界的原图，只支持nv12格式图片
  * @param[in] src_h: 原图高
@@ -219,6 +234,16 @@ std::shared_ptr<ImageInfo> hobotcv_imgproc(const char *src,
                                            const cv::Range &rowRange,
                                            const cv::Range &colRange);
 
+
+/**
+ * hobotcv加速图片bgr和nv12 conversion处理
+ * @param[in] src: 需要进行crop&resize&rotate的原图，只支持nv12格式图片
+ * @param[in] src_h: 原图高
+ * @param[in] src_w: 原图宽
+ * @param[in] color: 图像conversion的类型,参考hobot_cv::COLOR_E的定义
+ * @return 成功返回处理后的图片数据指针，失败返回nullptr
+ */
+std::shared_ptr<ImageInfo> hobotcv_color(const char *src, int src_h, int src_w, COLOR_E color);
 
 }  // namespace hobot_cv
 #endif  // HOBOT_CV_INCLUDE_HOBOTCV_IMGPROC_HPP_

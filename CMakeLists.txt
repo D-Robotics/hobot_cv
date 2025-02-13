@@ -83,6 +83,9 @@ else()
   endif()
 endif()
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -fsee -fomit-frame-pointer -fno-signed-zeros -fno-math-errno -funroll-loops")
+set(CMAKE_BUILD_TYPE "Release")
+
 message("PREFIX_PATH is " ${PREFIX_PATH})
 message("SYS_ROOT is " ${SYS_ROOT})
 message("PROJECT_SOURCE_DIR " ${PROJECT_SOURCE_DIR})
@@ -173,6 +176,11 @@ if (PLATFORM_X5)
     ${LINK_LIBS}
     ${PROJECT_NAME})
 
+  add_executable(test_conersion test/test_conersion.cpp)
+  target_link_libraries(test_conersion
+    ${LINK_LIBS}
+    ${PROJECT_NAME})
+
   ament_target_dependencies(
     ${PROJECT_NAME}
     rclcpp
@@ -206,7 +214,7 @@ if (PLATFORM_X5)
 
   # Install executables
   install(
-    TARGETS padding_example test_gaussian_blur 
+    TARGETS padding_example test_gaussian_blur test_conersion
             resize_example crop_example rotate_example imgproc_example neon_example
     RUNTIME DESTINATION lib/${PROJECT_NAME}
   )

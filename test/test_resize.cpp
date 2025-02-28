@@ -44,7 +44,7 @@ int main() {
   auto dst_width_2 = 960;
   cv::Mat dstmat_nv12(dst_height * 3 / 2, dst_width, CV_8UC1);
   cv::Mat dstmat_nv12_2(dst_height_2 * 3 / 2, dst_width_2, CV_8UC1);
-  int loop = 10;
+  int loop = 0;
   do {
     {  // resize first
       auto before_resize = std::chrono::system_clock::now();
@@ -65,8 +65,8 @@ int main() {
                   << " pixels"
                   << ", time cost: " << interval << " ms";
         RCLCPP_INFO(rclcpp::get_logger("example"), "%s", ss_resize.str().c_str());
+        writeImg(dstmat_nv12, "./resize.jpg");
       }
-      writeImg(dstmat_nv12, "./resize.jpg");
     }
 
     {  // resieze second
@@ -83,6 +83,7 @@ int main() {
                   << " pixels"
                   << ", time cost: " << interval << " ms";
         RCLCPP_INFO(rclcpp::get_logger("example"), "%s", ss_resize.str().c_str());
+        writeImg(dstmat_nv12_2, "./resize_2.jpg");
       }
     }
 
@@ -114,6 +115,6 @@ int main() {
     usleep(10*1000);
   } while(loop--);
    
-  usleep(10*1000*1000);
+  usleep(1000*1000);
   return 0;
 }

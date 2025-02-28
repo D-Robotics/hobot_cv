@@ -69,6 +69,10 @@ elseif(PLATFORM_Rdkultra)
   add_definitions(-DPLATFORM_Rdkultra)
   set(PREFIX_PATH rdkultra)
   set(SYS_ROOT ${THIRD_PARTY})
+elseif(PLATFORM_S100)
+  message("build platform S100")
+  add_definitions(-DPLATFORM_S100)
+  set(PREFIX_PATH s100)
 else()
   # 如果没有-DPLATFORM_XX=ON参数，则会判断系统的架构：`aarch64`则默认平台是X5，`x86_64`则默认平台是PC
   if (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "aarch64")
@@ -83,7 +87,7 @@ else()
   endif()
 endif()
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -fsee -fomit-frame-pointer -fno-signed-zeros -fno-math-errno -funroll-loops")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -fopenmp -fsee -fomit-frame-pointer -fno-signed-zeros -fno-math-errno  -funroll-loops -march=armv8-a+simd -mtune=cortex-a76 -flto")
 set(CMAKE_BUILD_TYPE "Release")
 
 message("PREFIX_PATH is " ${PREFIX_PATH})
@@ -583,6 +587,129 @@ elseif(PLATFORM_X86)
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
+  )
+elseif(PLATFORM_S100)
+  # RDK X5 平台编译规则
+  message("compile to s100 platform")
+  SET(VPS_LIBS cjson dl)
+  SET(NEON_LIBS  vpf hobotcv_neon_blur)
+
+  # 编译libhobot_cv.so动态链接库
+  add_library(${PROJECT_NAME} SHARED
+    src/utils.cpp
+    src/s100/hobotcv_imgproc/hobotcv_imgproc.cpp
+    src/s100/hobotcv_imgproc/hobotcv_front.cpp
+  )
+  target_link_libraries(${PROJECT_NAME} ${LINK_LIBS} ${VPS_LIBS} ${NEON_LIBS} )
+
+  # 编译使用示例
+  # add_executable(hobotcv_benchmark benchmark/main.cpp benchmark/hobotcv_benchmark_node.cpp)
+  # target_link_libraries(hobotcv_benchmark
+    # ${LINK_LIBS}
+    # ${PROJECT_NAME}
+    # ${VPS_LIBS})
+
+  add_executable(resize_example test/test_resize.cpp)
+  target_link_libraries(resize_example
+    ${LINK_LIBS}
+    ${PROJECT_NAME}
+    ${VPS_LIBS})
+
+  add_executable(crop_example test/test_crop.cpp)
+  target_link_libraries(crop_example
+    ${LINK_LIBS}
+    ${PROJECT_NAME}
+    ${VPS_LIBS})
+
+  add_executable(rotate_example test/test_rotate.cpp)
+  target_link_libraries(rotate_example
+    ${LINK_LIBS}
+    ${PROJECT_NAME}
+    ${VPS_LIBS})
+
+  add_executable(imgproc_example test/test_imgproc.cpp)
+  target_link_libraries(imgproc_example
+    ${LINK_LIBS}
+    ${PROJECT_NAME}
+    ${VPS_LIBS})
+  
+  add_executable(padding_example test/test_padding.cpp)
+  target_link_libraries(padding_example
+    ${LINK_LIBS}
+    ${PROJECT_NAME})
+
+  # add_executable(neon_example test/test_neon_blur.cpp)
+  # target_link_libraries(neon_example
+  #   ${LINK_LIBS}
+  #   ${PROJECT_NAME}
+  #   ${VPS_LIBS})
+
+  # add_executable(test_gaussian_blur test/test_gaussian_blur.cpp)
+  # target_link_libraries(test_gaussian_blur
+  #   ${LINK_LIBS}
+  #   ${PROJECT_NAME})
+
+  add_executable(test_conersion test/test_conersion.cpp)
+  target_link_libraries(test_conersion
+    ${LINK_LIBS}
+    ${PROJECT_NAME})
+
+  ament_target_dependencies(
+    ${PROJECT_NAME}
+    rclcpp
+  )
+
+  target_include_directories(${PROJECT_NAME} PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
+
+  target_link_directories(${PROJECT_NAME} PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/lib>
+  $<INSTALL_INTERFACE:lib>)
+
+  # Install libraries
+  install(TARGETS ${PROJECT_NAME}
+    DESTINATION lib/)
+
+  # Install include files
+  install(
+    FILES include/s100/hobotcv_imgproc/hobotcv_imgproc.h
+    #FILES thirdparty/include/hobotcv_neon_blur.h
+    DESTINATION include/${PROJECT_NAME}/
+  )
+
+  # Install library
+  # install(FILES
+  # ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/lib/libhobotcv_neon_blur.so
+  # DESTINATION lib/)
+
+  # Install executables
+  install(
+    TARGETS padding_example test_conersion
+            resize_example crop_example rotate_example imgproc_example
+    RUNTIME DESTINATION lib/${PROJECT_NAME}
+  )
+
+  # Install config
+  install(DIRECTORY
+    ${PROJECT_SOURCE_DIR}/config/
+    DESTINATION lib/${PROJECT_NAME}/config/
+  )
+
+  install(DIRECTORY
+  ${PROJECT_SOURCE_DIR}/launch/
+  DESTINATION share/${PROJECT_NAME}/launch)
+
+  # Causes the visibility macros to use dllexport rather than dllimport,
+  # which is appropriate when building the dll but not consuming it.
+  target_compile_definitions(${PROJECT_NAME}
+    PRIVATE "RCLCPP_BUILDING_LIBRARY")
+
+  install(
+    TARGETS ${PROJECT_NAME} EXPORT ${PROJECT_NAME}
+    ARCHIVE DESTINATION lib
+    LIBRARY DESTINATION lib
+    RUNTIME DESTINATION bin
   )
 endif()
 

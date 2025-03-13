@@ -592,7 +592,7 @@ elseif(PLATFORM_S100)
   # RDK X5 平台编译规则
   message("compile to s100 platform")
   SET(VPS_LIBS cjson dl)
-  SET(NEON_LIBS  vpf hobotcv_neon_blur)
+  # SET(NEON_LIBS  vpf hobotcv_neon_blur)
 
   # 编译libhobot_cv.so动态链接库
   add_library(${PROJECT_NAME} SHARED

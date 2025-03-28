@@ -112,6 +112,7 @@ int prepareBpuResizeParam(int src_w, int src_h, int dst_w, int dst_h) {
   return 0;
 }
 
+#ifndef PLATFORM_S100
 void prepare_nv12_tensor_without_padding(const char *image_data,
                                          int image_height,
                                          int image_width,
@@ -162,6 +163,8 @@ void prepare_nv12_tensor_without_padding(int image_height,
   int32_t image_length = image_height * w_stride * 3 / 2;
   hbSysAllocCachedMem(&tensor->sysMem[0], image_length);
 }
+
+#endif
 
 int32_t BGRToNv12(cv::Mat &bgr_mat, cv::Mat &img_nv12) {
   auto height = bgr_mat.rows;

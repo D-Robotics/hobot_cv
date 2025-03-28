@@ -18,7 +18,9 @@
 #include <memory>
 #include <string>
 
+#ifndef PLATFORM_S100
 #include "dnn/hb_dnn.h"
+#endif
 #include "opencv2/opencv.hpp"
 #include "rclcpp/rclcpp.hpp"
 
@@ -31,6 +33,7 @@
 
 int prepareBpuResizeParam(int src_w, int src_h, int dst_w, int dst_h);
 
+#ifndef PLATFORM_S100
 void prepare_nv12_tensor_without_padding(const char *image_data,
                                          int image_height,
                                          int image_width,
@@ -39,6 +42,7 @@ void prepare_nv12_tensor_without_padding(const char *image_data,
 void prepare_nv12_tensor_without_padding(int image_height,
                                          int image_width,
                                          hbDNNTensor *tensor);
+#endif
 
 int32_t BGRToNv12(cv::Mat &bgr_mat, cv::Mat &img_nv12);
 

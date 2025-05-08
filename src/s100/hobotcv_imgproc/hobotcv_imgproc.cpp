@@ -520,7 +520,7 @@ int hobotcv_resize(const cv::Mat &src,
                    cv::Mat &dst,
                    int dst_h,
                    int dst_w) {
-  //dst = cv::Mat(dst_h * 3 / 2, dst_w, CV_8UC1);
+  dst = cv::Mat(dst_h * 3 / 2, dst_w, CV_8UC1);
   neon_nv12_resize((const uint8_t*)src.data, (uint8_t*)dst.data, src_w, src_h, dst_w, dst_h);
   return 0;
 

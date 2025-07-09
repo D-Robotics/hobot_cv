@@ -254,7 +254,7 @@ void ImageProcessorNode::image_callback(
   }
 
   sensor_msgs::msg::Image::SharedPtr out_msg =
-      cv_bridge::CvImage(msg->header, msg->encoding, img).toImageMsg();
+      cv_bridge::CvImage(msg->header, encoding, img).toImageMsg();
   pub_->publish(*out_msg);
 }
 }  // namespace hobot_cv

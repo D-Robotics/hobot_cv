@@ -35,6 +35,11 @@ endif()
 # find_package(<dependency> REQUIRED)
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(cv_bridge REQUIRED)
+find_package(std_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(cv_bridge REQUIRED)
+find_package(rclcpp_components REQUIRED)
 #find_package(OpenCV REQUIRED)
 
 find_package(OpenCV)
@@ -132,6 +137,30 @@ if (PLATFORM_X5)
     src/x5/hobotcv_gaussian_blur_imp.cpp
   )
   target_link_libraries(${PROJECT_NAME} ${LINK_LIBS} ${VPS_LIBS} ${NEON_LIBS} )
+
+  add_library(image_processor_plugin SHARED src/image_processor_node/image_processor_node.cpp)
+  target_include_directories(image_processor_plugin PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>)
+  target_link_libraries(image_processor_plugin
+    ${LINK_LIBS}
+    ${PROJECT_NAME}
+    ${VPS_LIBS})
+  ament_target_dependencies(image_processor_plugin
+    rclcpp
+    rclcpp_components
+    sensor_msgs
+    cv_bridge
+    std_msgs
+  )
+
+  rclcpp_components_register_node(image_processor_plugin
+    PLUGIN "hobot_cv::ImageProcessorNode"
+    EXECUTABLE image_processor
+  )
+
+  install(TARGETS image_processor_plugin RUNTIME DESTINATION lib/${PROJECT_NAME})
+  install(TARGETS image_processor DESTINATION lib/${PROJECT_NAME})
 
   # 编译使用示例
   # add_executable(hobotcv_benchmark benchmark/main.cpp benchmark/hobotcv_benchmark_node.cpp)

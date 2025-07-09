@@ -13,6 +13,10 @@
   <member_of_group>rosidl_interface_packages</member_of_group>
 
   <depend>rclcpp</depend>
+  <depend>cv_bridge</depend>
+  <depend>std_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>rclcpp_components</depend>
 
   <depend condition="$PLATFORM == X3">hobot-multimedia-dev</depend>
   <depend condition="$PLATFORM == Rdkultra">hobot-multimedia-dev</depend>

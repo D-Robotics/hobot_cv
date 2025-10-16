@@ -437,6 +437,28 @@ Parameters:
 | src_w        | Width of the input image |
 | color | Enumeration of format conversion, refer to hobot_cv::COLOR_E |
 
+### image_processor_node    
+
+Function Introduction：This node supports receiving image_msg via subscription (sub) and performing the following operations:       
+- convert: image format conversion (e.g., NV12 → BGR, BGR → NV12)     
+- resize: resizing NV12 images       
+- crop: cropping NV12 images     
+It also supports chained configuration via parameters, allowing you to specify a sequence such as crop -> resize -> convert. After processing, the node publishes the image_msg via pub. Additionally, it supports dumping images via parameters for debugging purposes.
+
+```
+# Configure the tros.b environment
+source /opt/tros/humble/setup.bash
+
+# Copy the image files required for running the example from the tros.b installation path
+cp -r /opt/tros/${TROS_DISTRO}/lib/hobot_image_publisher/config/ .
+
+# Start the process that reads local images and publishes them
+ros2 run hobot_image_publisher hobot_image_pub   --ros-args   -p image_source:=test1.jpg   -p image_format:=jpg   -p msg_pub_topic_name:=/image_in   -p output_image_w:=960   -p output_image_h:=544   -p is_loop:=true -p is_shared_mem:=false -p fps:=1
+
+# Start the image processor node
+ros2 run hobot_cv image_processor   --ros-args   -p need_dump:=true   -p dump_pre_name:=frame_   -p dump_dir:=.   -p pipeline:="[resize, convert]"   -p convert.code:=DCOLOR_YUV2BGR_NV12 -p resize.dst_height:=272 -p resize.dst_width:=480
+```
+After running, the specified directory will contain images processed with resize + convert, with filenames prefixed by frame_.
 
 ## hobotcv_benchmark
 [Introduction to hobotcv_benchmark](./benchmark/README.md)

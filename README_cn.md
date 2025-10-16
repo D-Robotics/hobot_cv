@@ -440,6 +440,30 @@ std::shared_ptr<ImageInfo> hobotcv_color(const char *src,int src_h,int src_w, CO
 | src_w     | 输入图片宽           |
 | color   | 格式转换的枚举             |
 
+### image_processor_node    
+
+功能介绍：此节点支持通过订阅image_msg,并进行以下操作：
+- convert：图像格式转换（例如 NV12 → BGR、BGR → NV12）     
+- resize：调整 NV12 图像尺寸      
+- crop：裁剪 NV12 图像
+并且支持通过参数的方式进行链式配置，例如crop -> resize -> convert，处理完毕后，节点会将处理后mage_msg发布出去。此外，它还支持通过参数将图像进行 dump，以便调试。
+
+```
+# 配置tros.b环境
+source /opt/tros/humble/setup.bash
+
+# 从tros.b的安装路径中拷贝出运行示例需要的图片文件
+cp -r /opt/tros/${TROS_DISTRO}/lib/hobot_image_publisher/config/ .
+
+# 启动读取本地图片并发布进程
+ros2 run hobot_image_publisher hobot_image_pub   --ros-args   -p image_source:=test1.jpg   -p image_format:=jpg   -p msg_pub_topic_name:=/image_in   -p output_image_w:=960   -p output_image_h:=544   -p is_loop:=true -p is_shared_mem:=false -p fps:=1
+
+# 启动image processor进程
+ros2 run hobot_cv image_processor   --ros-args   -p need_dump:=true   -p dump_pre_name:=frame_   -p dump_dir:=.   -p pipeline:="[resize, convert]"   -p convert.code:=DCOLOR_YUV2BGR_NV12 -p resize.dst_height:=272 -p resize.dst_width:=480
+```
+指定目录下会生成resize + convert后的图像，并以frame_作为前缀。
+
+
 ## hobotcv_benchmark
 [hobotcv_benchmark相关介绍](./benchmark/README.md)
 

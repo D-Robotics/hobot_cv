@@ -18,7 +18,8 @@
 #include <memory>
 #include <string>
 
-#ifndef PLATFORM_S100
+//#ifndef PLATFORM_S100
+#if !defined(PLATFORM_S100) && !defined(PLATFORM_S600)
 #include "dnn/hb_dnn.h"
 #endif
 #include "opencv2/opencv.hpp"
@@ -33,7 +34,8 @@
 
 int prepareBpuResizeParam(int src_w, int src_h, int dst_w, int dst_h);
 
-#ifndef PLATFORM_S100
+//#ifndef PLATFORM_S100
+#if !defined(PLATFORM_S100) && !defined(PLATFORM_S600)
 void prepare_nv12_tensor_without_padding(const char *image_data,
                                          int image_height,
                                          int image_width,

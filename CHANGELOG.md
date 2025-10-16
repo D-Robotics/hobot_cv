@@ -1,4 +1,10 @@
 # Changelog for package hobot_cv
+
+tros_2.3.3 (2025-10-16)
+------------------
+1. 新增图像处理node，支持convert resize(nv12) crop(nv12)， 并将处理完毕后的图像发布。
+
+
 tros_2.3.1 (2025-02-12)
 ------------------
 1. RDK x5平台增加conersion的接口。

@@ -598,6 +598,8 @@ int hobotcv_front::set_vse_attr() {
     vse_attr_t vse_attr = {0};
     vse_ichn_attr_t vse_ichn_attr;
     vse_ochn_attr_t vse_ochn_attr;
+    memset(&vse_ichn_attr, 0, sizeof(vse_ichn_attr));
+    memset(&vse_ochn_attr, 0, sizeof(vse_ochn_attr));
     if ((dst_w > roi_w) || (dst_h > roi_h)) {
       ochn_id = 5;
     } else {

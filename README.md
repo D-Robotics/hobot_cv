@@ -453,7 +453,7 @@ source /opt/tros/humble/setup.bash
 cp -r /opt/tros/${TROS_DISTRO}/lib/hobot_image_publisher/config/ .
 
 # Start the process that reads local images and publishes them
-ros2 run hobot_image_publisher hobot_image_pub   --ros-args   -p image_source:=test1.jpg   -p image_format:=jpg   -p msg_pub_topic_name:=/image_in   -p output_image_w:=960   -p output_image_h:=544   -p is_loop:=true -p is_shared_mem:=false -p fps:=1
+ros2 run hobot_image_publisher hobot_image_pub   --ros-args   -p image_source:=config/test1.jpg   -p image_format:=jpg   -p msg_pub_topic_name:=/image_in   -p output_image_w:=960   -p output_image_h:=544   -p is_loop:=true -p is_shared_mem:=false -p fps:=1
 
 # Start the image processor node
 ros2 run hobot_cv image_processor   --ros-args   -p need_dump:=true   -p dump_pre_name:=frame_   -p dump_dir:=.   -p pipeline:="[resize, convert]"   -p convert.code:=DCOLOR_YUV2BGR_NV12 -p resize.dst_height:=272 -p resize.dst_width:=480

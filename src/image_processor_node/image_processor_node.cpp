@@ -24,7 +24,7 @@ ImageOperation::ImageOperation(int dst_height, int dst_width)
 ConvertOperation::ConvertOperation(COLOR_E convert_type)
     : convert_type_(convert_type) {
   if (convert_type_ == COLOR_E::DCOLOR_YUV2BGR_NV12) {
-    dst_encoding_ = "rgb8";
+    dst_encoding_ = "bgr8";
   }
 }
 
@@ -244,7 +244,7 @@ void ImageProcessorNode::image_callback(
   }
   if (need_dump_) {
     std::string file_name = dump_pre_name_ + std::to_string(dump_index_++) + ".jpg";
-    if (encoding == "rgb8") {
+    if (encoding == "bgr8") {
       cv::imwrite(dump_dir_ + "/" + file_name, img);
     } else if (encoding == "nv12") {
       cv::Mat rgb_image;

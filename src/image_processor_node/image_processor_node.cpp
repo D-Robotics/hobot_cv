@@ -157,10 +157,13 @@ ImageProcessorNode::ImageProcessorNode(const rclcpp::NodeOptions &options,
   get_parameter("dump_dir", dump_dir_);
   RCLCPP_INFO(this->get_logger(), "dump_dir: %s", dump_dir_.c_str());
   auto pipeline = get_parameter("pipeline").as_string_array();
+  RCLCPP_INFO(this->get_logger(), "pipeline.size: %ld", pipeline.size());
   for (const auto &op : pipeline) {
+    RCLCPP_INFO(this->get_logger(), "op: %s", op.c_str());
     if (op == "convert") {
       declare_parameter<std::string>("convert.code", "DCOLOR_YUV2BGR_NV12");
       std::string code = get_parameter("convert.code").as_string();
+      RCLCPP_INFO(this->get_logger(), "convert.code: %s", code.c_str());
       auto cv_code = get_color_conver_code(code);
       operations_.emplace_back(std::make_shared<ConvertOperation>(cv_code));
     } else if (op == "crop_resize") {

@@ -42,8 +42,11 @@ int main() {
   auto dst_width = src_width / 2;
   auto dst_height_2 = 544;
   auto dst_width_2 = 960;
+  auto dst_height_3 = 600;
+  auto dst_width_3 = 800;
   cv::Mat dstmat_nv12(dst_height * 3 / 2, dst_width, CV_8UC1);
   cv::Mat dstmat_nv12_2(dst_height_2 * 3 / 2, dst_width_2, CV_8UC1);
+  cv::Mat dstmat_nv12_3(dst_height_3 * 3 / 2, dst_width_3, CV_8UC1);
   int loop = 0;
   do {
     {  // resize first
@@ -87,10 +90,48 @@ int main() {
       }
     }
 
+    {  // resieze second
+      auto before_resize = std::chrono::system_clock::now();
+      auto ret = hobot_cv::hobotcv_resize(
+          srcmat_nv12, src_height, src_width, dstmat_nv12_3, dst_height_3, dst_width_3);
+      auto after_resize = std::chrono::system_clock::now();
+      auto interval = std::chrono::duration_cast<std::chrono::milliseconds>(
+                          after_resize - before_resize)
+                          .count();
+      if (0 == ret) {
+        std::stringstream ss_resize;
+        ss_resize << "resize image to " << dst_width_3 << "x" << dst_height_3
+                  << " pixels"
+                  << ", time cost: " << interval << " ms";
+        RCLCPP_INFO(rclcpp::get_logger("example"), "%s", ss_resize.str().c_str());
+        writeImg(dstmat_nv12_3, "./resize_3.jpg");
+      }
+    }
+
+    {  // resieze second
+      auto before_resize = std::chrono::system_clock::now();
+      auto ret = hobot_cv::hobotcv_resize(
+        dstmat_nv12_3, dst_height_3, dst_width_3, dstmat_nv12_2, dst_height_2, dst_width_2);
+      auto after_resize = std::chrono::system_clock::now();
+      auto interval = std::chrono::duration_cast<std::chrono::milliseconds>(
+                          after_resize - before_resize)
+                          .count();
+      if (0 == ret) {
+        std::stringstream ss_resize;
+        ss_resize << "resize image to " << dst_width_2 << "x" << dst_height_2
+                  << " pixels"
+                  << ", time cost: " << interval << " ms";
+        RCLCPP_INFO(rclcpp::get_logger("example"), "%s", ss_resize.str().c_str());
+        writeImg(dstmat_nv12_2, "./resize_4.jpg");
+      }
+    }
+    
+
+
     {
       // 选择一组触发条件的目标分辨率：src_w > dst_h && src_h < dst_w
-      auto dst_height_neon = 400;
-      auto dst_width_neon = 1200;
+      auto dst_height_neon = 1200;
+      auto dst_width_neon = 400;
 
       RCLCPP_INFO(rclcpp::get_logger("example"),
                   "\n=== NEON fallback test ===\n"

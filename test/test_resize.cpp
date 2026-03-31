@@ -87,6 +87,56 @@ int main() {
       }
     }
 
+    {
+      // 选择一组触发条件的目标分辨率：src_w > dst_h && src_h < dst_w
+      auto dst_height_neon = 400;
+      auto dst_width_neon = 1200;
+
+      RCLCPP_INFO(rclcpp::get_logger("example"),
+                  "\n=== NEON fallback test ===\n"
+                  "src(%d x %d) -> dst(%d x %d)\n"
+                  "src_w(%d) > dst_h(%d) ? %s\n"
+                  "src_h(%d) < dst_w(%d) ? %s",
+                  src_width,
+                  src_height,
+                  dst_width_neon,
+                  dst_height_neon,
+                  src_width,
+                  dst_height_neon,
+                  (src_width > dst_height_neon) ? "YES -> NEON" : "NO",
+                  src_height,
+                  dst_width_neon,
+                  (src_height < dst_width_neon) ? "YES -> NEON" : "NO");
+
+      cv::Mat dstmat_neon(dst_height_neon * 3 / 2, dst_width_neon, CV_8UC1);
+
+      auto before_resize = std::chrono::system_clock::now();
+      auto ret = hobot_cv::hobotcv_resize(srcmat_nv12,
+                                          src_height,
+                                          src_width,
+                                          dstmat_neon,
+                                          dst_height_neon,
+                                          dst_width_neon);
+      auto after_resize = std::chrono::system_clock::now();
+      auto interval = std::chrono::duration_cast<std::chrono::milliseconds>(
+                          after_resize - before_resize)
+                          .count();
+
+      if (0 == ret) {
+        std::stringstream ss_resize;
+        ss_resize << "[NEON] resize image to " << dst_width_neon << "x"
+                  << dst_height_neon << " pixels, time cost: " << interval
+                  << " ms";
+        RCLCPP_INFO(
+            rclcpp::get_logger("example"), "%s", ss_resize.str().c_str());
+        writeImg(dstmat_neon, "./resize_neon_fallback.jpg");
+      } else {
+        RCLCPP_ERROR(rclcpp::get_logger("example"),
+                     "NEON fallback resize failed! ret=%d",
+                     ret);
+      }
+    }
+
     {  // nv12 interface resieze
       auto before_resize = std::chrono::system_clock::now();
       auto imageInfo = hobot_cv::hobotcv_resize(

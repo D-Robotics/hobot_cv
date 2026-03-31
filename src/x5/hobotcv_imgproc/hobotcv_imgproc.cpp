@@ -945,26 +945,42 @@ std::shared_ptr<ImageInfo> hobotcv_resize(const char *src,
     msStart = (ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
   }
 
-  auto front_ptr = hobotcv_front_group::getInstance().getHobotcvFront(src_w, src_h, dst_w, dst_h, cv::Range(0, 0), cv::Range(0, 0));
-  if (front_ptr == nullptr) {
-    return nullptr;
-  }
-  
-  //dst = cv::Mat(dst_h * 3 / 2, dst_w, CV_8UC1);
-
   int dst_size = dst_w * dst_h * 1.5;
   char* dst = (char *)malloc(dst_size);
-  ret = front_ptr->processFrame(src, src_w, src_h, dst, dst_size);
-  if (ret != 0) {
-    return nullptr;
+
+  if (((src_w > src_h) && (dst_w < dst_h)) || ((src_w > dst_w) && (src_h < dst_h)) ||
+  ((src_w < src_h) && (dst_w > dst_h)) || ((src_w < dst_w) && (src_h > dst_h))) {
+    RCLCPP_INFO(rclcpp::get_logger("hobot_cv"),
+                "Resolution not suitable for VSE, using NEON resize: "
+                "src(%d x %d) -> dst(%d x %d)",
+                src_w,
+                src_h,
+                dst_w,
+                dst_h);
+
+    cv::Mat src_m(src_h * 3 / 2, src_w, CV_8UC1, (void*)src);
+    cv::Mat dst_m(dst_h * 3 / 2, dst_w, CV_8UC1, (void*)dst);
+    hobotcv_neon_resize_nv12(src_m, src_h, src_w, dst_m, dst_h, dst_w);
+
+  } else {
+    auto front_ptr = hobotcv_front_group::getInstance().getHobotcvFront(src_w, src_h, dst_w, dst_h, cv::Range(0, 0), cv::Range(0, 0));
+    if (front_ptr == nullptr) {
+      return nullptr;
+    }
+
+    ret = front_ptr->processFrame(src, src_w, src_h, dst, dst_size);
+    if (ret != 0) {
+      return nullptr;
+    }
   }
+
   {
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
     msEnd = (ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
   }
-    RCLCPP_INFO(rclcpp::get_logger("hobot_cv"),
-            "hobotcv_resize vps laps ms= %d", (msEnd - msStart));  
+  RCLCPP_INFO(rclcpp::get_logger("hobot_cv"),
+            "hobotcv_resize laps ms= %d", (msEnd - msStart));  
   auto imageInfo = new ImageInfo;
   imageInfo->width = dst_w;
   imageInfo->height = dst_h;

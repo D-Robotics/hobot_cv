@@ -203,6 +203,33 @@ int main() {
         writeImg(dst_mat, "./nv12_interface_resize.jpg");
       }
     }
+
+    {  // nv12 interface resieze 2
+      auto before_resize = std::chrono::system_clock::now();
+      auto imageInfo = hobot_cv::hobotcv_resize(
+          reinterpret_cast<const char *>(dstmat_nv12_3.data),
+          dst_height_3,
+          dst_width_3,
+          dst_height_2,
+          dst_width_2);
+      auto after_resize = std::chrono::system_clock::now();
+      auto interval = std::chrono::duration_cast<std::chrono::milliseconds>(
+                          after_resize - before_resize)
+                          .count();
+      if (imageInfo != nullptr) {
+        std::stringstream ss_resize;
+        ss_resize << "nv12 interface resize image to " << dst_width_2 << "x"
+                  << dst_height_2 << " pixels"
+                  << ", time cost: " << interval << " ms";
+        RCLCPP_INFO(rclcpp::get_logger("example"), "%s", ss_resize.str().c_str());
+        cv::Mat dst_mat(imageInfo->height * 3 / 2,
+                        imageInfo->width,
+                        CV_8UC1,
+                        imageInfo->imageAddr);
+        writeImg(dst_mat, "./nv12_interface_resize_2.jpg");
+      }
+    }    
+
     usleep(10*1000);
   } while(loop--);
    

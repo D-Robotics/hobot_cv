@@ -566,8 +566,9 @@ int hobotcv_resize(const cv::Mat &src,
     msStart = (ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
   }
 
-  if (src_w > src_h && dst_h < dst_w) {
-    RCLCPP_WARN(rclcpp::get_logger("hobot_cv"),
+  if (((src_w > src_h) && (dst_w < dst_h)) || ((src_w > dst_w) && (src_h < dst_h)) ||
+  ((src_w < src_h) && (dst_w > dst_h)) || ((src_w < dst_w) && (src_h > dst_h))) {
+    RCLCPP_INFO(rclcpp::get_logger("hobot_cv"),
                 "Resolution not suitable for VSE, using NEON resize: "
                 "src(%d x %d) -> dst(%d x %d)",
                 src_w,
@@ -585,6 +586,14 @@ int hobotcv_resize(const cv::Mat &src,
                 (msEnd - msStart));
     return ret;
   }
+
+  RCLCPP_INFO(rclcpp::get_logger("hobot_cv"),
+                "Using VSE resize: "
+                "src(%d x %d) -> dst(%d x %d)",
+                src_w,
+                src_h,
+                dst_w,
+                dst_h);
 
   auto front_ptr = hobotcv_front_group::getInstance().getHobotcvFront(src_w, src_h, dst_w, dst_h, cv::Range(0, 0), cv::Range(0, 0));
   if (front_ptr == nullptr) {

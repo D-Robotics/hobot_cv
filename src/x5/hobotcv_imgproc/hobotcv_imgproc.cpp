@@ -959,9 +959,9 @@ std::shared_ptr<ImageInfo> hobotcv_resize(const char *src,
                 dst_h);
 
     cv::Mat src_m(src_h * 3 / 2, src_w, CV_8UC1, (void*)src);
-    cv::Mat dst_m(dst_h * 3 / 2, dst_w, CV_8UC1, (void*)dst);
+    cv::Mat dst_m(dst_h * 3 / 2, dst_w, CV_8UC1);
     hobotcv_neon_resize_nv12(src_m, src_h, src_w, dst_m, dst_h, dst_w);
-
+    memcpy(dst, dst_m.data, dst_size);
   } else {
     auto front_ptr = hobotcv_front_group::getInstance().getHobotcvFront(src_w, src_h, dst_w, dst_h, cv::Range(0, 0), cv::Range(0, 0));
     if (front_ptr == nullptr) {

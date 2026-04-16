@@ -91,7 +91,7 @@ class ImageProcessorNode : public rclcpp::Node {
       const rclcpp::NodeOptions &options = rclcpp::NodeOptions(),
       const std::string &node_name = "ImageProcessorNode");
 
-  ~ImageProcessorNode() = default;
+  ~ImageProcessorNode();
 
  private:
   COLOR_E get_color_conver_code(const std::string &name);

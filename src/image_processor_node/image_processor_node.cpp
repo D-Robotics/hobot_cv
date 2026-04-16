@@ -206,6 +206,12 @@ ImageProcessorNode::ImageProcessorNode(const rclcpp::NodeOptions &options,
   pub_ = create_publisher<sensor_msgs::msg::Image>("/image_out", 10);
 }
 
+ImageProcessorNode::~ImageProcessorNode() {
+  sub_.reset();
+  pub_.reset();
+  operations_.clear();
+}
+
 COLOR_E ImageProcessorNode::get_color_conver_code(const std::string &name) {
   static const std::map<std::string, COLOR_E> map = {
       {"DCOLOR_YUV2BGR_NV12", COLOR_E::DCOLOR_YUV2BGR_NV12},

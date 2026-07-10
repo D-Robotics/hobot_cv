@@ -15,7 +15,11 @@
 #ifndef IMAGE_PROCESSOR_NODE__H_
 #define IMAGE_PROCESSOR_NODE__H_
 
-#include <cv_bridge/cv_bridge.h>
+#ifdef CV_BRIDGE_CPP
+#include <cv_bridge/cv_bridge.hpp>
+#else
+#include <cv_bridge/cv_bridge.hpp>
+#endif
 
 #include <cstdint>
 #include <opencv2/imgcodecs.hpp>

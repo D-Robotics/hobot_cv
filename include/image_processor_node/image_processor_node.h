@@ -18,7 +18,7 @@
 #ifdef CV_BRIDGE_CPP
 #include <cv_bridge/cv_bridge.hpp>
 #else
-#include <cv_bridge/cv_bridge.hpp>
+#include <cv_bridge/cv_bridge.h>
 #endif
 
 #include <cstdint>

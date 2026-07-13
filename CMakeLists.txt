@@ -142,7 +142,7 @@ link_directories(
   ${SYS_ROOT}/usr/lib/hbbpu/
   ${SYS_ROOT}/usr/lib/hbmedia/
   ${SYS_ROOT}/usr/lib/aarch64-linux-gnu/
-  thirdparty/lib/
+  thirdparty/lib/${PREFERRED_ROS_DISTRO}/
 )
 
 SET(LINK_LIBS dnn  ${OpenCV_LIBS})

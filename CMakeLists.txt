@@ -267,7 +267,7 @@ if (PLATFORM_X5)
 
   # Install library
   install(FILES
-  ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/lib/libhobotcv_neon_blur.so
+  ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/lib/${PREFERRED_ROS_DISTRO}/libhobotcv_neon_blur.so
   DESTINATION lib/)
 
   # Install executables
@@ -398,7 +398,7 @@ elseif(PLATFORM_X3)
 
   # Install library
   install(FILES
-  ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/lib/libhobotcv_neon_blur.so
+  ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/lib/${PREFERRED_ROS_DISTRO}/libhobotcv_neon_blur.so
   DESTINATION lib/)
 
   # Install executables
@@ -606,7 +606,7 @@ elseif(PLATFORM_X86)
 
   # Install library
   # install(FILES
-  # ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/lib/libhobotcv_neon_blur.so
+  # ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/lib/${PREFERRED_ROS_DISTRO}/libhobotcv_neon_blur.so
   # DESTINATION lib/)
 
   # Install executables
@@ -734,7 +734,7 @@ elseif(PLATFORM_S100)
 
   # Install library
   # install(FILES
-  # ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/lib/libhobotcv_neon_blur.so
+  # ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/lib/${PREFERRED_ROS_DISTRO}/libhobotcv_neon_blur.so
   # DESTINATION lib/)
 
   # Install executables
@@ -858,7 +858,7 @@ elseif(PLATFORM_S600)
 
   # Install library
   # install(FILES
-  # ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/lib/libhobotcv_neon_blur.so
+  # ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/lib/${PREFERRED_ROS_DISTRO}/libhobotcv_neon_blur.so
   # DESTINATION lib/)
 
   # Install executables

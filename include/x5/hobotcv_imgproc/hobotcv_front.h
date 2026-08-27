@@ -28,6 +28,7 @@
 #include <signal.h>
 
 #include <chrono>
+#include <condition_variable>
 #include <functional>
 #include <thread>
 #include <atomic>
@@ -79,6 +80,14 @@ std::unique_ptr<char[]> hobotcv_reflect_padding(const char *src,
                                                 uint32_t right);
 
 
+// 后台定时线程的安全退出修复：
+// 原实现 cancel() 只 detach 不 join，且工作线程从 sleep 醒来后不重查
+// running 就直接调回调。单例（hobotcv_front_group）在 exit() 全局析构
+// 阶段销毁时，工作线程大概率仍在 ≤1s 的睡眠窗口内，醒来后调用已销毁
+// 的回调 -> 野指针间接跳转 -> SIGBUS/SIGSEGV。
+// 修复遵循「翻 flag -> notify 唤醒阻塞 -> join 等退出 -> 再销毁资源」：
+// join 返回即线程确证已退出，此后销毁回调/对象安全。
+// 注意：工作线程不碰 ROS API，纯 flag 即可，无需并入 rclcpp::ok()。
 class Timer {
  public:
     Timer() : running(false) {}
@@ -93,19 +102,28 @@ class Timer {
     void start() {
         if (!running.exchange(true)) {
             thread_ = std::thread([this]() {
+              std::unique_lock<std::mutex> lk(cv_mtx_);
               while (this->running.load()) {
-                std::this_thread::sleep_for(this->duration_);
+                // wait_for 替代 sleep_for：cancel() 的 notify 可立即唤醒，
+                // notify 丢失也有超时兜底（上界一个周期），醒后必重查 flag
+                cv_.wait_for(lk, this->duration_,
+                             [this]() { return !this->running.load(); });
+                if (!this->running.load()) break;  // 已请求停止则不再调回调
+                lk.unlock();
                 this->callback_func_();
+                lk.lock();
               }
             });
         }
     }
 
-    // 取消定时器
+    // 取消定时器：翻 flag -> notify -> join，顺序不可换。
+    // 返回时工作线程已完全退出，之后销毁回调及本对象安全。
     void cancel() {
         if (running.exchange(false)) {
+            cv_.notify_all();
             if (thread_.joinable()) {
-                thread_.detach(); // 如果线程在sleep中，这可能导致不确定的行为
+                thread_.join();
             }
         }
     }
@@ -119,6 +137,8 @@ class Timer {
     std::chrono::milliseconds duration_;
     std::thread thread_;
     std::function<void()> callback_func_;
+    std::mutex cv_mtx_;
+    std::condition_variable cv_;
 };
 
 class hobotcv_front {
